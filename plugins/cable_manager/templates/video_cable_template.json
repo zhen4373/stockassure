@@ -1,0 +1,40 @@
+{
+  "template_id": "video_cable_template",
+  "display_name": "Video & Display Cable",
+  "belong_to_plugin": "cable_manager",
+  "schema": {
+    "type": "object",
+    "required": ["cable_type", "length_meters"],
+    "properties": {
+      "cable_type": {
+        "type": "string",
+        "title": "Cable Type",
+        "enum": ["HDMI to HDMI", "DisplayPort to DisplayPort", "USB-C to HDMI", "USB-C to DP", "VGA / DVI"],
+        "description": "The video interface type"
+      },
+      "length_meters": {
+        "type": "number",
+        "title": "Length (meters)",
+        "description": "e.g., 1, 1.8, 3, 5"
+      },
+      "color": {
+        "type": ["string", "null"],
+        "title": "Color",
+        "default": "Black"
+      },
+      "supported_resolution": {
+        "type": "string",
+        "title": "Spec / Resolution (Advanced Note)",
+        "enum": ["Unknown", "HDMI 2.0 (4K 60Hz)", "HDMI 2.1 (8K 60Hz / 4K 120Hz)", "DP 1.4", "DP 2.1"],
+        "default": "Unknown",
+        "ui_group": "advanced_notes"
+      },
+      "current_status": {
+        "type": "string",
+        "title": "Status Note (Advanced Note)",
+        "description": "e.g., PC to Monitor, Spare in living room drawer",
+        "ui_group": "advanced_notes"
+      }
+    }
+  }
+}

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockAssure 物資雷達控制台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">📦</span>
+                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                    StockAssure <span class="text-xs text-slate-500 font-mono">v0.5.0</span>
+                </h1>
+            </div>
+            <div class="text-sm text-slate-400 font-mono bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
+                🟢 Plugin Engine Active
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <section class="md:col-span-1 bg-slate-800/50 border border-slate-800 rounded-2xl p-6 backdrop-blur h-fit">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                    <span>🗺️</span> 空間架構樹
+                </h2>
+                <button onclick="fetchTree()" class="text-xs text-cyan-400 hover:underline">🔄 重新整理</button>
+            </div>
+            <div id="tree-container" class="space-y-2 text-sm text-slate-300">
+                <p class="text-slate-500 italic">載入空間中...</p>
+            </div>
+        </section>
+
+        <section class="md:col-span-2 space-y-6">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3">📁 新增儲物空間</h3>
+                    <div class="flex flex-col gap-2">
+                        <input id="new-loc-name" type="text" placeholder="空間名稱 (如: 抽屜 A)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                        <button onclick="createLocation()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition">建立空間</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+                    <h3 id="form-action-title" class="text-sm font-semibold text-slate-300 mb-3">⚡ 外掛模板動態登錄 (新增模式)</h3>
+                    <div class="flex flex-col gap-2">
+                        <select id="template-selector" onchange="renderDynamicForm()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none"></select>
+                        <input id="new-obj-name" type="text" placeholder="物品自訂名稱 (如: 綠色扁線)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none">
+                        <input id="editing-object-id" type="hidden" value="">
+                    </div>
+                    <div id="dynamic-form-fields" class="mt-3 space-y-3 pt-3 border-t border-slate-700/50"></div>
+                    
+                    <div class="flex gap-2 mt-4">
+                        <button id="submit-btn" onclick="submitObject()" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition">入庫校驗並存檔</button>
+                        <button id="cancel-edit-btn" onclick="cancelEditMode()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm transition">取消</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+                <h3 id="list-title" class="text-lg font-semibold text-slate-200 mb-4">📦 物資全景清單</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-800 text-sm">
+                        <thead>
+                            <tr class="text-slate-400 text-left">
+                                <th class="pb-3 font-medium">物品名稱</th>
+                                <th class="pb-3 font-medium">使用模板</th>
+                                <th class="pb-3 font-medium">後端強校驗與補全結果 (JSON)</th>
+                                <th class="pb-3 font-medium text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="object-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+                            <tr><td colspan="4" class="py-4 text-center text-slate-500 italic">請點擊左側空間讀取數據...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000/api/v1";
+        let GLOBAL_SCHEMAS = {};
+        let CURRENT_SELECTED_LOCATION_ID = 1;
+
+        async function init() {
+            await fetchTemplates();
+            await fetchTree();
+        }
+
+        async function fetchTemplates() {
+            try {
+                const res = await fetch(`${API_BASE}/templates`);
+                const data = await res.json();
+                GLOBAL_SCHEMAS = data.templates;
+                
+                const selector = document.getElementById("template-selector");
+                selector.innerHTML = "";
+                Object.keys(GLOBAL_SCHEMAS).forEach(key => {
+                    const opt = document.createElement("option");
+                    opt.value = key;
+                    opt.innerText = key;
+                    selector.appendChild(opt);
+                });
+
+                if (selector.options.length > 0) {
+                    selector.selectedIndex = 0;
+                }
+                renderDynamicForm();
+            } catch (err) { console.error("無法取得外掛 Schema", err); }
+        }
+
+        function renderDynamicForm() {
+            const templateKey = document.getElementById("template-selector").value;
+            if (!templateKey || !GLOBAL_SCHEMAS[templateKey]) return;
+
+            const schema = GLOBAL_SCHEMAS[templateKey].schema; 
+            const container = document.getElementById("dynamic-form-fields");
+            container.innerHTML = "";
+
+            if (!schema || !schema.properties) return;
+
+            Object.keys(schema.properties).forEach(propKey => {
+                const prop = schema.properties[propKey];
+                const isRequired = schema.required && schema.required.includes(propKey);
+                
+                const fieldWrapper = document.createElement("div");
+                fieldWrapper.className = "flex flex-col gap-1";
+                
+                let labelText = `${propKey} ${isRequired ? '<span class="text-red-500">*</span>' : ''}`;
+                if (prop.default) labelText += ` <span class="text-xs text-slate-500">(預設: ${prop.default})</span>`;
+                
+                fieldWrapper.innerHTML = `<label class="text-xs text-slate-400 font-mono">${labelText}</label>`;
+
+                if (prop.enum) {
+                    let selectHtml = `<select data-prop="${propKey}" class="dynamic-input bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white">`;
+                    selectHtml += `<option value="">-- 未選擇 --</option>`;
+                    prop.enum.forEach(v => { selectHtml += `<option value="${v}">${v}</option>`; });
+                    selectHtml += `</select>`;
+                    fieldWrapper.innerHTML += selectHtml;
+                } else {
+                    const inputType = prop.type === "number" || prop.type === "integer" ? "number" : "text";
+                    const step = prop.type === "number" ? 'step="0.1"' : '';
+                    fieldWrapper.innerHTML += `<input type="${inputType}" ${step} data-prop="${propKey}" placeholder="${prop.type}" class="dynamic-input bg-slate-900 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white focus:outline-none">`;
+                }
+                container.appendChild(fieldWrapper);
+            });
+        }
+
+        function enterEditMode(encodedObj) {
+            const obj = JSON.parse(decodeURIComponent(atob(encodedObj)));
+            
+            document.getElementById("form-action-title").innerText = `⚡ 外掛模板動態登錄 (編輯模式：ID ${obj.id})`;
+            document.getElementById("editing-object-id").value = obj.id;
+            document.getElementById("new-obj-name").value = obj.name;
+            document.getElementById("template-selector").value = obj.template_type;
+            
+            renderDynamicForm();
+            
+            setTimeout(() => {
+                document.querySelectorAll(".dynamic-input").forEach(input => {
+                    const propKey = input.getAttribute("data-prop");
+                    if (obj.extra_data && obj.extra_data[propKey] !== undefined) {
+                        input.value = obj.extra_data[propKey];
+                    }
+                });
+            }, 50);
+
+            document.getElementById("submit-btn").innerText = "儲存修改並重新校驗";
+            document.getElementById("submit-btn").className = "flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition";
+            document.getElementById("cancel-edit-btn").classList.remove("hidden");
+        }
+
+        function cancelEditMode() {
+            document.getElementById("form-action-title").innerText = "⚡ 外掛模板動態登錄 (新增模式)";
+            document.getElementById("editing-object-id").value = "";
+            document.getElementById("new-obj-name").value = "";
+            document.getElementById("submit-btn").innerText = "入庫校驗並存檔";
+            document.getElementById("submit-btn").className = "w-full bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition";
+            document.getElementById("cancel-edit-btn").classList.add("hidden");
+            renderDynamicForm();
+        }
+
+        async function submitObject() {
+            const name = document.getElementById("new-obj-name").value.trim();
+            const template_type = document.getElementById("template-selector").value;
+            const editingId = document.getElementById("editing-object-id").value;
+            if (!name) { alert("請填寫物品自訂名稱！"); return; }
+
+            const extra_data = {};
+            document.querySelectorAll(".dynamic-input").forEach(input => {
+                const propKey = input.getAttribute("data-prop");
+                let val = input.value;
+                if (val === "" || val === undefined) return;
+
+                const schemaProp = GLOBAL_SCHEMAS[template_type].schema.properties[propKey];
+                if (schemaProp.type === "number") val = parseFloat(val);
+                if (schemaProp.type === "integer") val = parseInt(val, 10);
+                
+                extra_data[propKey] = val;
+            });
+
+            const url = editingId ? `${API_BASE}/objects/${editingId}` : `${API_BASE}/objects/`;
+            const method = editingId ? "PUT" : "POST";
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: name,
+                        location_id: CURRENT_SELECTED_LOCATION_ID,
+                        template_type: template_type,
+                        extra_data: extra_data
+                    })
+                });
+
+                const result = await res.json();
+                if (res.ok) {
+                    alert(editingId ? "🎉 物品修改成功且通過強校驗！" : `🎉 入庫成功！ID: ${result.id}`);
+                    cancelEditMode();
+                    fetchTree();
+                    loadObjectsByLocation(CURRENT_SELECTED_LOCATION_ID, "目前空間");
+                } else {
+                    alert(`❌ 校驗失敗：\n${JSON.stringify(result.detail, null, 2)}`);
+                }
+            } catch (err) { alert("連線錯誤"); }
+        }
+
+        async function deleteObject(objId) {
+            if (!confirm("確定要刪除這件物資嗎？此操作無法還原。")) return;
+            try {
+                const res = await fetch(`${API_BASE}/objects/${objId}`, { method: "DELETE" });
+                if (res.ok) {
+                    fetchTree();
+                    loadObjectsByLocation(CURRENT_SELECTED_LOCATION_ID, "目前空間");
+                } else { alert("刪除失敗"); }
+            } catch (err) { alert("連線錯誤"); }
+        }
+
+        async function fetchTree() {
+            try {
+                const res = await fetch(`${API_BASE}/locations/tree-view`);
+                const data = await res.json();
+                const container = document.getElementById("tree-container");
+                container.innerHTML = "";
+                data.tree.forEach(node => { container.appendChild(renderTreeNode(node)); });
+            } catch (err) { console.error(err); }
+        }
+
+        function renderTreeNode(node) {
+            const div = document.createElement("div");
+            div.className = "pl-2 border-l border-slate-700 my-1";
+            const label = document.createElement("div");
+            label.className = `flex items-center justify-between p-2 hover:bg-slate-700/40 rounded-lg cursor-pointer transition ${CURRENT_SELECTED_LOCATION_ID === node.id ? 'bg-slate-800 border-l-2 border-emerald-500' : ''}`;
+            label.innerHTML = `
+                <span class="flex items-center gap-2">📂 <strong>${node.name}</strong></span>
+                <span class="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full font-mono">${node.items.length} 件</span>
+            `;
+            label.onclick = () => {
+                CURRENT_SELECTED_LOCATION_ID = node.id;
+                fetchTree();
+                loadObjectsByLocation(node.id, node.name);
+            };
+            div.appendChild(label);
+
+            if (node.sub_locations && node.sub_locations.length > 0) {
+                const subContainer = document.createElement("div");
+                subContainer.className = "ml-4";
+                node.sub_locations.forEach(sub => { subContainer.appendChild(renderTreeNode(sub)); });
+                div.appendChild(subContainer);
+            }
+            return div;
+        }
+
+        async function loadObjectsByLocation(locId, locName) {
+            try {
+                document.getElementById("list-title").innerText = `📦 【${locName}】及其子空間的物資清單`;
+                const res = await fetch(`${API_BASE}/objects/by-location/${locId}?recursive=true`);
+                const data = await res.json();
+                const tbody = document.getElementById("object-table-body");
+                tbody.innerHTML = "";
+
+                if (data.objects.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500 italic">該空間目前空空如也...</td></tr>`;
+                    return;
+                }
+
+                data.objects.forEach(obj => {
+                    const tr = document.createElement("tr");
+                    tr.className = "hover:bg-slate-800/30 transition";
+                    
+                    const objString = btoa(encodeURIComponent(JSON.stringify(obj)));
+
+                    tr.innerHTML = `
+                        <td class="py-3 font-semibold text-emerald-400">${obj.name}</td>
+                        <td class="py-3 font-mono text-xs text-slate-400"><span class="bg-slate-800 px-2 py-1 rounded border border-slate-700">${obj.template_type}</span></td>
+                        <td class="py-3 text-xs text-slate-300"><pre class="bg-slate-900/80 p-2 rounded-lg font-mono max-w-md overflow-x-auto">${JSON.stringify(obj.extra_data, null, 2)}</pre></td>
+                        <td class="py-3 text-xs text-right space-x-2">
+                            <button onclick="enterEditMode('${objString}')" class="text-cyan-400 hover:underline">✏️ 編輯</button>
+                            <button onclick="deleteObject(${obj.id})" class="text-red-400 hover:underline">🗑️ 刪除</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function createLocation() {
+            const nameInput = document.getElementById("new-loc-name");
+            const name = nameInput.value.trim();
+            if (!name) return;
+            try {
+                const res = await fetch(`${API_BASE}/locations/`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: name, parent_id: CURRENT_SELECTED_LOCATION_ID })
+                });
+                if (res.ok) { nameInput.value = ""; fetchTree(); }
+            } catch (err) { console.error(err); }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

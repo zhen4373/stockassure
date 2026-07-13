@@ -1,0 +1,51 @@
+{
+  "template_id": "usb_cable_template",
+  "display_name": "USB & Charging Cable",
+  "belong_to_plugin": "cable_manager",
+  "schema": {
+    "type": "object",
+    "required": ["head_type", "tail_type", "length_meters"],
+    "properties": {
+      "head_type": {
+        "type": "string",
+        "title": "Head (Plug A)",
+        "description": "e.g., USB-A, Type-C"
+      },
+      "tail_type": {
+        "type": "string",
+        "title": "Tail (Plug B)",
+        "description": "e.g., Type-C, Lightning, Micro-USB"
+      },
+      "length_meters": {
+        "type": "number",
+        "title": "Length (meters)",
+        "description": "e.g., 0.5, 1, 1.8, 2"
+      },
+      "color": {
+        "type": ["string", "null"],
+        "title": "Color",
+        "default": "Black"
+      },
+      "max_power_delivery": {
+        "type": "string",
+        "title": "Max Power (Advanced Note)",
+        "enum": ["Unknown", "Standard (15W)", "60W", "100W", "240W"],
+        "default": "Unknown",
+        "ui_group": "advanced_notes"
+      },
+      "data_speed": {
+        "type": "string",
+        "title": "Data Speed (Advanced Note)",
+        "enum": ["Charging Only", "USB 2.0 (480Mbps)", "USB 3.2 (5/10Gbps)", "USB4 / TB4 (40Gbps)"],
+        "default": "Charging Only",
+        "ui_group": "advanced_notes"
+      },
+      "current_status": {
+        "type": "string",
+        "title": "Status Note (Advanced Note)",
+        "description": "e.g., Spare in box, In-use behind desk",
+        "ui_group": "advanced_notes"
+      }
+    }
+  }
+}

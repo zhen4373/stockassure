@@ -1,0 +1,21 @@
+{
+  "plugin_id": "cable_manager",
+  "name": "Cable Manager",
+  "version": "0.1.0",
+  "description": "A plugin to organize all your USB, Ethernet, and Video/Audio cables with precision.",
+  "enabled": true,
+  "provided_templates": [
+    {
+      "template_id": "usb_cable_template",
+      "display_name": "USB & Charging Cable"
+    },
+    {
+      "template_id": "network_cable_template",
+      "display_name": "Ethernet / Network Cable"
+    },
+    {
+      "template_id": "video_cable_template",
+      "display_name": "Video & Display Cable"
+    }
+  ]
+}
