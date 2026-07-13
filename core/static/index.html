@@ -16,7 +16,7 @@
             <div class="flex items-center space-x-3">
                 <span class="text-2xl">📦</span>
                 <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    StockAssure <span class="text-xs text-slate-500 font-mono">v0.5.0</span>
+                    StockAssure <span class="text-xs text-slate-500 font-mono">v0.5.0-Extended</span>
                 </h1>
             </div>
             <div class="text-sm text-slate-400 font-mono bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
@@ -43,10 +43,19 @@
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
-                    <h3 class="text-sm font-semibold text-slate-300 mb-3">📁 新增儲物空間</h3>
+                    <h3 id="loc-form-title" class="text-sm font-semibold text-slate-300 mb-3">📁 新增儲物空間</h3>
                     <div class="flex flex-col gap-2">
                         <input id="new-loc-name" type="text" placeholder="空間名稱 (如: 抽屜 A)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 text-white">
-                        <button onclick="createLocation()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition">建立空間</button>
+                        <div id="loc-parent-wrapper" class="hidden flex flex-col gap-1">
+                            <label class="text-xs text-slate-400 font-mono">變更父級空間 ID (留空代表改為根空間)</label>
+                            <input id="new-loc-parent-id" type="number" placeholder="父空間 ID (如: 1)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-1.5 text-xs text-white focus:outline-none">
+                        </div>
+                        <input id="editing-location-id" type="hidden" value="">
+                        
+                        <div class="flex gap-2">
+                            <button id="loc-submit-btn" onclick="submitLocation()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition">建立空間</button>
+                            <button id="loc-cancel-btn" onclick="cancelLocationEditMode()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm transition">取消</button>
+                        </div>
                     </div>
                 </div>
 
@@ -113,9 +122,7 @@
                     selector.appendChild(opt);
                 });
 
-                if (selector.options.length > 0) {
-                    selector.selectedIndex = 0;
-                }
+                if (selector.options.length > 0) selector.selectedIndex = 0;
                 renderDynamicForm();
             } catch (err) { console.error("無法取得外掛 Schema", err); }
         }
@@ -157,6 +164,75 @@
             });
         }
 
+        // --- 空間管理 (新增 / 編輯) 邏輯 ---
+        async function submitLocation() {
+            const nameInput = document.getElementById("new-loc-name");
+            const name = nameInput.value.trim();
+            const editingLocId = document.getElementById("editing-location-id").value;
+            
+            if (!name) return;
+
+            if (editingLocId) {
+                // 編輯模式 (PUT)
+                const parentInput = document.getElementById("new-loc-parent-id").value.trim();
+                const parent_id = parentInput === "" ? null : parseInt(parentInput, 10);
+                
+                try {
+                    const res = await fetch(`${API_BASE}/locations/${editingLocId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: name, parent_id: parent_id })
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                        cancelLocationEditMode();
+                        fetchTree();
+                    } else {
+                        alert(`❌ 空間遷移失敗：\n${result.detail}`);
+                    }
+                } catch (err) { alert("連線錯誤"); }
+            } else {
+                // 新增模式 (POST)
+                try {
+                    const res = await fetch(`${API_BASE}/locations/`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: name, parent_id: CURRENT_SELECTED_LOCATION_ID })
+                    });
+                    if (res.ok) { nameInput.value = ""; fetchTree(); }
+                } catch (err) { console.error(err); }
+            }
+        }
+
+        function enterLocationEditMode(id, name, parentId) {
+            document.getElementById("loc-form-title").innerText = `🛠️ 編輯儲物空間 (ID: ${id})`;
+            document.getElementById("editing-location-id").value = id;
+            document.getElementById("new-loc-name").value = name;
+            document.getElementById("new-loc-parent-id").value = parentId === null ? "" : parentId;
+            
+            document.getElementById("loc-parent-wrapper").classList.remove("hidden");
+            document.getElementById("loc-cancel-btn").classList.remove("hidden");
+            
+            const btn = document.getElementById("loc-submit-btn");
+            btn.innerText = "儲存變更";
+            btn.className = "flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition";
+        }
+
+        function cancelLocationEditMode() {
+            document.getElementById("loc-form-title").innerText = "📁 新增儲物空間";
+            document.getElementById("editing-location-id").value = "";
+            document.getElementById("new-loc-name").value = "";
+            document.getElementById("new-loc-parent-id").value = "";
+            
+            document.getElementById("loc-parent-wrapper").classList.add("hidden");
+            document.getElementById("loc-cancel-btn").classList.add("hidden");
+            
+            const btn = document.getElementById("loc-submit-btn");
+            btn.innerText = "建立空間";
+            btn.className = "flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition";
+        }
+
+        // --- 物品管理 (新增 / 編輯) 邏輯 ---
         function enterEditMode(encodedObj) {
             const obj = JSON.parse(decodeURIComponent(atob(encodedObj)));
             
@@ -261,11 +337,20 @@
         function renderTreeNode(node) {
             const div = document.createElement("div");
             div.className = "pl-2 border-l border-slate-700 my-1";
+            
             const label = document.createElement("div");
-            label.className = `flex items-center justify-between p-2 hover:bg-slate-700/40 rounded-lg cursor-pointer transition ${CURRENT_SELECTED_LOCATION_ID === node.id ? 'bg-slate-800 border-l-2 border-emerald-500' : ''}`;
+            label.className = `flex items-start justify-between p-2.5 hover:bg-slate-700/40 rounded-xl cursor-pointer transition gap-x-2 ${CURRENT_SELECTED_LOCATION_ID === node.id ? 'bg-slate-800 border-l-2 border-emerald-500 text-emerald-400' : ''}`;
+            
             label.innerHTML = `
-                <span class="flex items-center gap-2">📂 <strong>${node.name}</strong></span>
-                <span class="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full font-mono">${node.items.length} 件</span>
+                <span class="flex items-center gap-2 min-w-0 break-all text-sm">
+                    <span>📂</span>
+                    <strong class="text-[10px] font-mono text-slate-500 select-none bg-slate-900/50 px-1 py-0.5 rounded border border-slate-700/40">[ID:${node.id}]</strong>
+                    <span class="font-medium tracking-wide truncate">${node.name}</span>
+                </span>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-auto">
+                    <button onclick="event.stopPropagation(); enterLocationEditMode(${node.id}, '${node.name}', ${node.parent_id})" class="text-slate-400 hover:text-amber-400 text-xs p-1 opacity-60 hover:opacity-100 transition">✏️</button>
+                    <span class="text-[11px] bg-slate-700/60 text-slate-300 px-2 py-0.5 rounded-md font-mono border border-slate-600/30 whitespace-nowrap">${node.items.length} 件</span>
+                </div>
             `;
             label.onclick = () => {
                 CURRENT_SELECTED_LOCATION_ID = node.id;
@@ -308,25 +393,11 @@
                         <td class="py-3 text-xs text-slate-300"><pre class="bg-slate-900/80 p-2 rounded-lg font-mono max-w-md overflow-x-auto">${JSON.stringify(obj.extra_data, null, 2)}</pre></td>
                         <td class="py-3 text-xs text-right space-x-2">
                             <button onclick="enterEditMode('${objString}')" class="text-cyan-400 hover:underline">✏️ 編輯</button>
-                            <button onclick="deleteObject(${obj.id})" class="text-red-400 hover:underline">🗑️ 刪除</button>
+                            <button onclick="deleteObject('${obj.id}')" class="text-red-400 hover:underline">🗑️ 刪除</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
-            } catch (err) { console.error(err); }
-        }
-
-        async function createLocation() {
-            const nameInput = document.getElementById("new-loc-name");
-            const name = nameInput.value.trim();
-            if (!name) return;
-            try {
-                const res = await fetch(`${API_BASE}/locations/`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: name, parent_id: CURRENT_SELECTED_LOCATION_ID })
-                });
-                if (res.ok) { nameInput.value = ""; fetchTree(); }
             } catch (err) { console.error(err); }
         }
 
