@@ -9,5 +9,6 @@ class Settings:
     DB_DIR: Path = BASE_DIR / "config"
     DATABASE_URL: str = f"sqlite:///{DB_DIR}/database.db"
     PLUGINS_DIR: Path = BASE_DIR / "plugins"
+    Language: str = "Chinese Traditional"
 
 settings = Settings()
