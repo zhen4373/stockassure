@@ -46,7 +46,7 @@ stockassure/
 ```
 ## Start the System
 ### On Linux/MacOS
-    ```bash
+```text
     cd stockassure_path
 
     source .venv/bin/activate
@@ -54,9 +54,9 @@ stockassure/
     pip install fastapi uvicorn sqlalchemy
 
     uvicorn core.main:app --reload
-    ```
+```
 ### On Windows
-    ```bash
+```bash
     cd stockassure_path
 
     .venv\Scripts\activate
@@ -64,7 +64,7 @@ stockassure/
     pip install fastapi uvicorn sqlalchemy
 
     uvicorn core.main:app --reload
-    ```
+```
 
 ### When it successfully starts
 * **Access the Dashboard:** Open your browser and navigate to `http://localhost:8000`.
