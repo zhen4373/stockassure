@@ -353,7 +353,7 @@
             fetchObjects();
         }
 
-        // [READ] 獲取右下物資清單表格 (API 已移除 v1)
+        // [READ] 獲取右下物資清單表格
         async function fetchObjects() {
             if (!currentSelectedLocationId) return;
             const res = await fetch(`/api/objects/by-location/${currentSelectedLocationId}?recursive=true`);
@@ -386,7 +386,7 @@
             });
         }
 
-        // [CREATE / UPDATE] 空間庫存樹節點提交 (API 已移除 v1)
+        // [CREATE / UPDATE] 空間庫存樹節點提交 
         async function submitLocation() {
             const nameInput = document.getElementById('new-loc-name');
             const parentInput = document.getElementById('new-loc-parent-id');
@@ -430,6 +430,13 @@
             } else {
                 const err = await res.json();
                 alert(`Error: ${JSON.stringify(err.detail)}`);
+            }
+            // 強制整頁重新整理
+            try {
+                window.location.reload();
+            } catch (e) {
+                // fallback: navigate to same URL
+                window.location.href = window.location.pathname;
             }
         }
 
