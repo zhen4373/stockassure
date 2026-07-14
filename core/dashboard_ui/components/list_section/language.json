@@ -14,9 +14,9 @@
     "msg_delete_success": "物資已成功從資料庫移除。"
   },
   "en-GB": {
-    "table_title": "📦 Asset Panoramic Inventory",
-    "dynamic_table_title": "📦 Assets in 【{name}】 & Sub-locations",
-    "th_name": "Asset Name",
+    "table_title": "📦 Item Panoramic Inventory",
+    "dynamic_table_title": "📦 Item in 【{name}】 & Sub-locations",
+    "th_name": "Item Name",
     "th_template": "Template Used",
     "th_validation": "Backend Validation & Completion (JSON)",
     "th_action": "Action",
@@ -24,7 +24,7 @@
     "space_empty": "This location is currently empty...",
     "btn_edit": "✏️ Edit",
     "btn_delete": "🗑️ Delete",
-    "confirm_delete": "Are you sure you want to delete this asset? This cannot be undone.",
-    "msg_delete_success": "Asset successfully removed from database."
+    "confirm_delete": "Are you sure you want to delete this item? This cannot be undone.",
+    "msg_delete_success": "item successfully removed from database."
   }
 }
