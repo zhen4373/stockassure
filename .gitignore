@@ -51,3 +51,6 @@ nosetests.xml
 
 # Pyre
 .pyre/
+
+#macos
+.DS_Store
