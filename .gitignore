@@ -8,6 +8,7 @@ __pycache__/
 .pytype/
 .pyre/
 __pypackages__/
+__pycache__/
 
 # Distribution / packaging
 build/
@@ -51,6 +52,3 @@ nosetests.xml
 
 # Pyre
 .pyre/
-
-#macos
-.DS_Store
