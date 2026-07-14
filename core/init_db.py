@@ -8,17 +8,17 @@ def init_db():
     db = SessionLocal()
     try:
         if db.query(Location).count() == 0:
-            print("🌱 StockAssure 偵測到全新資料庫，正在植入預設空間種子資料...")
-            garage = Location(name="Garage (車庫)")
-            basement = Location(name="Basement (地下室)")
+            print("🌱 StockAssure A new database has been detected \n  example data for a pre-defined space is being implanted...")
+            garage = Location(name="Garage")
+            basement = Location(name="Basement")
             db.add(garage)
             db.add(basement)
             db.commit()
-            print("✅ 種子資料植入成功！")
+            print("✅ Example data implanted successfully !")
         else:
-            print("🗄️ 資料庫已存在，跳過種子資料植入。")
+            print("🗄️ database already exists \n skip the seed data implantation...")
     except Exception as e:
-        print(f"❌ 初始化資料庫失敗: {e}")
+        print(f"❌ Fale to Initialise Data Base: {e}")
         db.rollback()
     finally:
         db.close()
