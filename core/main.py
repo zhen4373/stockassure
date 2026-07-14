@@ -12,10 +12,10 @@ app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 @app.on_event("startup")
 def startup_event():
     print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} starting up...")
+    print(f"\nSystem Language: {settings.Language}\n")
     init_db()
     load_plugins()
 
-# 🌟 這裡也精準去掉 v1，完美對齊前端 initSystem 的請求！
 @app.get("/api/system/config")
 async def get_system_config():
     return {
@@ -24,7 +24,6 @@ async def get_system_config():
         "language": settings.Language
     }
 
-# 🌟 精準符合前端的 /api/templates
 @app.get("/api/templates")
 def get_available_templates():
     return {

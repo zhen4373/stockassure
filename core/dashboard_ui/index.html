@@ -24,17 +24,23 @@
     <header id="header-root" class="border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md sticky top-0 z-50 h-16"></header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 overflow-hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
             <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[400px] max-h-[600px] overflow-y-auto">
                 <p class="text-slate-500 italic animate-pulse">載入空間中...</p>
             </div>
-            <div id="form-section-root" class="lg:col-span-2"></div>
+            <div id="form-section-root" class="lg:col-span-2 min-h-[400px] max-h-[600px] overflow-y-auto"></div>
         </div>
-        <div id="list-section-root" class="custom-card rounded-2xl p-6"></div>
+        <div id="list-section-root" class="custom-card rounded-2xl p-6 min-h-[400px]"></div>
     </main>
 
     <script>
         let CURRENT_LANG = 'zh-TW';
+        try {
+            const savedLang = localStorage.getItem('stockassure_lang');
+            if (savedLang) CURRENT_LANG = savedLang;
+        } catch (e) {
+            // ignore (localStorage not available)
+        }
         let systemLocales = {};
         let currentSelectedLocationId = null;
         let templatesMeta = {};
@@ -44,11 +50,24 @@
             try {
                 const sysConfigRes = await fetch('/api/system/config');
                 if (sysConfigRes.ok) {
-                    const sysConfig = await sysConfigRes.json();
-                    if (sysConfig.language === "Chinese Traditional") {
-                        CURRENT_LANG = 'zh-TW';
-                    } else {
-                        CURRENT_LANG = 'en-GB';
+                    // 只有在使用者尚未有本地偏好時才採用後端系統語言
+                    try {
+                        const savedLang = localStorage.getItem('stockassure_lang');
+                        if (!savedLang) {
+                            const sysConfig = await sysConfigRes.json();
+                            if (sysConfig.language === "Chinese Traditional") {
+                                CURRENT_LANG = 'zh-TW';
+                            } else {
+                                CURRENT_LANG = 'en-GB';
+                            }
+                        }
+                    } catch (e) {
+                        const sysConfig = await sysConfigRes.json();
+                        if (sysConfig.language === "Chinese Traditional") {
+                            CURRENT_LANG = 'zh-TW';
+                        } else {
+                            CURRENT_LANG = 'en-GB';
+                        }
                     }
                 }
 
@@ -66,9 +85,12 @@
                     loadComponent('form_section', '#form-section-root'),
                     loadComponent('list_section', '#list-section-root')
                 ]);
+                        // 確保語系選單反映目前系統語言
+                        const langEl = document.getElementById('lang-selector');
+                        if (langEl) langEl.value = CURRENT_LANG;
 
-                await fetchTemplates();
-                await fetchTree();
+                        await fetchTemplates();
+                        await fetchTree();
                 
             } catch (err) {
                 console.error("❌ StockAssure 模組化引擎初始化失敗:", err);
@@ -117,6 +139,39 @@
                 text = text.replace(`{${k}}`, v);
             }
             return text;
+        }
+
+        // 切換語系：重新載入所有組件並重新渲染表單/列表
+        async function changeLanguage(lang) {
+            if (!lang) return;
+            CURRENT_LANG = lang;
+            try {
+                try { localStorage.setItem('stockassure_lang', lang); } catch(e) {}
+                await Promise.all([
+                    loadComponent('header', '#header-root'),
+                    loadComponent('tree_section', '#tree-section-root'),
+                    loadComponent('form_section', '#form-section-root'),
+                    loadComponent('list_section', '#list-section-root')
+                ]);
+
+                // 更新語系選單狀態（header 已被重載，重新取回）
+                const langEl = document.getElementById('lang-selector');
+                if (langEl) langEl.value = CURRENT_LANG;
+
+                // 重新渲染表單與資料
+                renderDynamicForm();
+                await fetchTree();
+                await fetchObjects();
+            } catch (err) {
+                console.error('語系切換失敗:', err);
+            }
+            // 強制整頁重新整理以保證所有靜態資源與元件完全切換語系
+            try {
+                window.location.reload();
+            } catch (e) {
+                // fallback: navigate to same URL
+                window.location.href = window.location.pathname;
+            }
         }
 
         // [READ] 獲取外掛模板定義 (API 已移除 v1)
@@ -251,14 +306,24 @@
                     countBadge.textContent = `${node.object_count} ${suffix}`;
                     right.appendChild(countBadge);
 
-                    const editBtn = document.createElement('button');
-                    editBtn.className = "text-xs text-slate-500 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition px-1";
-                    editBtn.innerHTML = "✏️";
-                    editBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        enterLocationEditMode(node.id, node.name, node.parent_id);
-                    };
-                    right.appendChild(editBtn);
+                            const editBtn = document.createElement('button');
+                            editBtn.className = "text-xs text-slate-500 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition px-1";
+                            editBtn.innerHTML = "✏️";
+                            editBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                enterLocationEditMode(node.id, node.name, node.parent_id);
+                            };
+                            right.appendChild(editBtn);
+
+                            const delBtn = document.createElement('button');
+                            delBtn.className = "text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition px-1";
+                            delBtn.innerHTML = "🗑️";
+                            delBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                if (!confirm(getLocaleText('tree_section', 'confirm_delete') || '確定要刪除此儲物空間嗎？')) return;
+                                deleteLocation(node.id);
+                            };
+                            right.appendChild(delBtn);
 
                     row.appendChild(left);
                     row.appendChild(right);
@@ -313,7 +378,7 @@
                     <td class="py-3 font-mono text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${obj.template_type}</span></td>
                     <td class="py-3 font-mono text-xs text-emerald-400 max-w-md truncate" title='${JSON.stringify(obj.extra_data)}'>${JSON.stringify(obj.extra_data)}</td>
                     <td class="py-3 text-right space-x-2">
-                        <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', ${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))})" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
+                            <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', '${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))}')" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
                         <button onclick="deleteObject('${obj.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_delete')}</button>
                     </td>
                 `;
@@ -433,6 +498,24 @@
                 alert(getLocaleText('list_section', 'msg_delete_success'));
                 await fetchTree();
                 await fetchObjects();
+            }
+        }
+
+        // [DELETE] 儲物空間刪除
+        async function deleteLocation(id) {
+            const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert('儲物空間已刪除');
+                await fetchTree();
+                // 若目前檢視的物件屬於該空間，清空物件列表
+                if (currentSelectedLocationId === id) {
+                    currentSelectedLocationId = null;
+                    const tbody = document.getElementById('object-table-body');
+                    if (tbody) tbody.innerHTML = '';
+                }
+            } else {
+                const err = await res.json();
+                alert(`無法刪除儲物空間: ${JSON.stringify(err.detail)}`);
             }
         }
 

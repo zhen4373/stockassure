@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from core.database import get_db
-from core.models import Location
+from core.models import Location, CoreObject
 
 router = APIRouter(prefix="/api/locations", tags=["Locations"])
 
@@ -67,12 +67,13 @@ def update_location(location_id: int, payload: LocationUpdateSchema, db: Session
 def get_location_tree(db: Session = Depends(get_db)):
     all_locs = db.query(Location).all()
     
+    # 建立節點物件，前端期待的欄位包含 `children` 與 `object_count`
     loc_dict = {loc.id: {
         "id": loc.id,
         "name": loc.name,
         "parent_id": loc.parent_id,
-        "sub_locations": [],
-        "items": [obj.name for obj in loc.objects]
+        "children": [],
+        "object_count": len(loc.objects or [])
     } for loc in all_locs}
     
     root_locations = []
@@ -82,6 +83,27 @@ def get_location_tree(db: Session = Depends(get_db)):
             root_locations.append(loc_node)
         else:
             if p_id in loc_dict:
-                loc_dict[p_id]["sub_locations"].append(loc_node)
+                loc_dict[p_id]["children"].append(loc_node)
                 
-    return {"tree": root_locations}
+    # 直接回傳陣列以符合前端預期的 JSON 結構（前端以 array 操作）
+    return root_locations
+
+
+@router.delete("/{location_id}")
+def delete_location(location_id: int, db: Session = Depends(get_db)):
+    loc = db.query(Location).filter(Location.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="找不到該儲物空間")
+
+    # 若已有子空間或底下有物品，不允許刪除
+    child_count = db.query(Location).filter(Location.parent_id == location_id).count()
+    if child_count > 0:
+        raise HTTPException(status_code=400, detail="此空間底下仍有子空間，請先移除或轉移子空間")
+
+    obj_count = db.query(CoreObject).filter(CoreObject.location_id == location_id).count()
+    if obj_count > 0:
+        raise HTTPException(status_code=400, detail="此空間底下仍有物資，請先刪除或移動物資")
+
+    db.delete(loc)
+    db.commit()
+    return {"status": "success", "message": "儲物空間已刪除"}

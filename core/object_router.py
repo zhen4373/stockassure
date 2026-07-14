@@ -116,7 +116,8 @@ def get_objects_by_location(location_id: int, recursive: bool = True, db: Sessio
             "extra_data": parsed_extra_data
         })
         
-    return {"location_id": location_id, "objects": result}
+    # 直接回傳物資陣列以符合前端 `fetchObjects` 的處理邏輯
+    return result
 
 
 # --- 3. 修改/編輯物資 (PUT) ---
