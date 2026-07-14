@@ -23,14 +23,12 @@
 
     <header id="header-root" class="border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md sticky top-0 z-50 h-16"></header>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 overflow-hidden">
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 overflow-auto">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[400px] max-h-[600px] overflow-y-auto">
-                <p class="text-slate-500 italic animate-pulse">載入空間中...</p>
-            </div>
-            <div id="form-section-root" class="lg:col-span-2 min-h-[400px] max-h-[600px] overflow-y-auto"></div>
+            <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[260px] lg:min-h-[400px] max-h-[600px] overflow-hidden"></div>
+            <div id="form-section-root" class="lg:col-span-2 min-h-[260px] lg:min-h-[400px] max-h-[600px] overflow-hidden"></div>
         </div>
-        <div id="list-section-root" class="custom-card rounded-2xl p-6 min-h-[400px]"></div>
+        <div id="list-section-root" class="custom-card rounded-2xl p-6 min-h-[260px] lg:min-h-[400px] max-h-[55vh] overflow-hidden"></div>
     </main>
 
     <script>
@@ -141,6 +139,24 @@
             return text;
         }
 
+        function renderValidationDetails(extraData) {
+            if (!extraData || typeof extraData !== 'object') {
+                return `<div class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-slate-200 text-xs">${String(extraData)}</div>`;
+            }
+
+            const rows = Object.entries(extraData).map(([key, value]) => {
+                const displayValue = value === null ? 'null' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+                return `
+                    <div class="grid grid-cols-[140px_1fr] gap-x-3 py-1 border-b border-slate-800/70 last:border-b-0">
+                        <div class="text-slate-400 text-[11px] uppercase tracking-[0.12em]">${key}</div>
+                        <div class="text-slate-100 text-xs break-words">${displayValue}</div>
+                    </div>
+                `;
+            }).join('');
+
+            return `<div class="rounded-2xl bg-slate-900/80 border border-slate-700 p-3 text-xs space-y-1">${rows}</div>`;
+        }
+
         // 切換語系：重新載入所有組件並重新渲染表單/列表
         async function changeLanguage(lang) {
             if (!lang) return;
@@ -195,6 +211,31 @@
         }
 
         // 動態表單渲染器
+        function switchFormTab(tabName) {
+            const locationTab = document.getElementById('form-tab-location');
+            const objectTab = document.getElementById('form-tab-object');
+            const locationBtn = document.getElementById('form-tab-location-btn');
+            const objectBtn = document.getElementById('form-tab-object-btn');
+
+            if (!locationTab || !objectTab || !locationBtn || !objectBtn) return;
+
+            if (tabName === 'location') {
+                locationTab.classList.remove('hidden');
+                objectTab.classList.add('hidden');
+                locationBtn.classList.add('bg-cyan-500/15', 'text-slate-100');
+                locationBtn.classList.remove('text-slate-300');
+                objectBtn.classList.remove('bg-cyan-500/15', 'text-slate-100');
+                objectBtn.classList.add('text-slate-300');
+            } else {
+                objectTab.classList.remove('hidden');
+                locationTab.classList.add('hidden');
+                objectBtn.classList.add('bg-cyan-500/15', 'text-slate-100');
+                objectBtn.classList.remove('text-slate-300');
+                locationBtn.classList.remove('bg-cyan-500/15', 'text-slate-100');
+                locationBtn.classList.add('text-slate-300');
+            }
+        }
+
         function renderDynamicForm() {
             const selector = document.getElementById('template-selector');
             const container = document.getElementById('dynamic-form-fields');
@@ -209,7 +250,7 @@
 
             for (const [field, prop] of Object.entries(schema.properties)) {
                 const wrap = document.createElement('div');
-                wrap.className = "flex flex-col gap-1 text-xs";
+                wrap.className = "flex flex-col gap-2 text-xs";
 
                 const isRequired = requiredFields.includes(field);
                 const label = document.createElement('label');
@@ -222,7 +263,7 @@
                 if (prop.enum) {
                     const sel = document.createElement('select');
                     sel.name = field;
-                    sel.className = "bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs";
+                    sel.className = "bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white text-sm";
                     
                     const defOpt = document.createElement('option');
                     defOpt.value = "";
@@ -241,7 +282,7 @@
                     input.name = field;
                     input.type = prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text';
                     input.placeholder = prop.type + ` ${hint}`;
-                    input.className = "bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-cyan-500";
+                    input.className = "bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-cyan-500";
                     wrap.appendChild(input);
                 }
                 container.appendChild(wrap);
@@ -374,11 +415,11 @@
                 tr.className = "hover:bg-slate-900/30 transition";
                 
                 tr.innerHTML = `
-                    <td class="py-3 font-medium text-slate-200">${obj.name}</td>
-                    <td class="py-3 font-mono text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${obj.template_type}</span></td>
-                    <td class="py-3 font-mono text-xs text-emerald-400 max-w-md truncate" title='${JSON.stringify(obj.extra_data)}'>${JSON.stringify(obj.extra_data)}</td>
-                    <td class="py-3 text-right space-x-2">
-                            <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', '${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))}')" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
+                    <td class="py-3 font-medium text-slate-200 align-top">${obj.name}</td>
+                    <td class="py-3 font-mono text-xs text-slate-400 align-top"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${obj.template_type}</span></td>
+                    <td class="py-3 align-top">${renderValidationDetails(obj.extra_data)}</td>
+                    <td class="py-3 text-right space-x-2 align-top">
+                        <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', '${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))}')" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
                         <button onclick="deleteObject('${obj.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_delete')}</button>
                     </td>
                 `;
@@ -527,6 +568,7 @@
         }
 
         function enterLocationEditMode(id, name, parentId) {
+            switchFormTab('location');
             document.getElementById('editing-location-id').value = id;
             document.getElementById('new-loc-name').value = name;
             document.getElementById('new-loc-parent-id').value = parentId || "";
@@ -550,6 +592,7 @@
         }
 
         function enterObjectEditMode(id, name, templateType, extraDataB64) {
+            switchFormTab('object');
             document.getElementById('editing-object-id').value = id;
             document.getElementById('new-obj-name').value = name;
             document.getElementById('template-selector').value = templateType;
@@ -582,7 +625,10 @@
             if(document.getElementById('cancel-edit-btn')) document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
 
-        window.addEventListener('DOMContentLoaded', initSystem);
+        window.addEventListener('DOMContentLoaded', () => {
+            switchFormTab('location');
+            initSystem();
+        });
     </script>
 </body>
 </html>

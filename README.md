@@ -42,3 +42,9 @@ stockassure/
 |           └── usb_cable_template.json
 |           └── network_cable_template.json 
 └── core/                    # FastAPI Backend Source Code
+
+```
+## Start the System
+```bash
+uvicorn core.main:app --reload
+
