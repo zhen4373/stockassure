@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from core.config import settings
 
-# 確保 config 資料夾存在
+# to confirm config exist
 os.makedirs(settings.DB_DIR, exist_ok=True)
 
 engine = create_engine(
