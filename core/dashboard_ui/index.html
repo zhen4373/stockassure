@@ -25,7 +25,9 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 overflow-hidden">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[400px] max-h-[600px] overflow-y-auto"></div>
+            <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[400px] max-h-[600px] overflow-y-auto">
+                <p class="text-slate-500 italic animate-pulse">載入空間中...</p>
+            </div>
             <div id="form-section-root" class="lg:col-span-2"></div>
         </div>
         <div id="list-section-root" class="custom-card rounded-2xl p-6"></div>
@@ -37,7 +39,7 @@
         let currentSelectedLocationId = null;
         let templatesMeta = {};
 
-        // 2. 系統架構初始化引擎 (🌟 已移除 v1)
+        // 系統架構初始化引擎 (API 皆已移除 v1)
         async function initSystem() {
             try {
                 const sysConfigRes = await fetch('/api/system/config');
@@ -117,7 +119,7 @@
             return text;
         }
 
-        // [READ] 獲取外掛模板定義 (🌟 已移除 v1)
+        // [READ] 獲取外掛模板定義 (API 已移除 v1)
         async function fetchTemplates() {
             const res = await fetch('/api/templates');
             if (res.ok) {
@@ -137,6 +139,7 @@
             }
         }
 
+        // 動態表單渲染器
         function renderDynamicForm() {
             const selector = document.getElementById('template-selector');
             const container = document.getElementById('dynamic-form-fields');
@@ -175,7 +178,6 @@
                         const o = document.createElement('option');
                         o.value = v;
                         o.textContent = v;
-                        selector.appendChild(o); // 修正為 sel 避免渲染錯誤
                         sel.appendChild(o);
                     });
                     wrap.appendChild(sel);
@@ -191,61 +193,89 @@
             }
         }
 
-        // [READ] 獲取空間樹狀圖 (🌟 已移除 v1)
+        // [READ] 獲取空間樹狀圖 (高相容性結構校驗修正版)
         async function fetchTree() {
-            const res = await fetch('/api/locations/tree-view');
-            if (!res.ok) return;
-            const data = await res.json();
-            const container = document.getElementById('tree-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            function renderNode(node, depth = 0) {
-                const row = document.createElement('div');
-                row.className = `flex items-center justify-between group p-1.5 rounded-lg hover:bg-slate-800/40 cursor-pointer transition`;
-                row.style.paddingLeft = `${depth * 1.25 + 0.5}rem`;
-                
-                row.onclick = (e) => {
-                    if (e.target.closest('button')) return;
-                    document.querySelectorAll('#tree-container > div').forEach(el => el.classList.remove('bg-slate-800', 'border-l-2', 'border-cyan-400'));
-                    row.classList.add('bg-slate-800', 'border-l-2', 'border-cyan-400');
-                    selectLocation(node.id, node.name);
-                };
-
-                const left = document.createElement('div');
-                left.className = "flex items-center gap-2 truncate";
-                left.innerHTML = `<span class="text-slate-500 font-mono text-xs">[ID:${node.id}]</span> 📁 <span>${node.name}</span>`;
-                
-                const right = document.createElement('div');
-                right.className = "flex items-center gap-2 flex-shrink-0";
-                
-                const countBadge = document.createElement('span');
-                countBadge.className = `text-xs px-2 py-0.5 rounded-full font-mono ${node.object_count > 0 ? 'bg-cyan-500/10 text-cyan-400' : 'bg-slate-800 text-slate-500'}`;
-                countBadge.textContent = `${node.object_count} ${getLocaleText('tree_section', 'item_suffix')}`;
-                right.appendChild(countBadge);
-
-                const editBtn = document.createElement('button');
-                editBtn.className = "text-xs text-slate-500 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition px-1";
-                editBtn.innerHTML = "✏️";
-                editBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    enterLocationEditMode(node.id, node.name, node.parent_id);
-                };
-                right.appendChild(editBtn);
-
-                row.appendChild(left);
-                row.appendChild(right);
-                container.appendChild(row);
-
-                if (node.children && node.children.length > 0) {
-                    node.children.forEach(child => renderNode(child, depth + 1));
+            try {
+                const res = await fetch('/api/locations/tree-view');
+                if (!res.ok) {
+                    console.error("無法獲取空間樹數據:", res.status);
+                    return;
                 }
-            }
+                const data = await res.json();
+                
+                // 🌟 自動向下相容：優先尋找內部組件容器，若不存在則直接渲染至外層根節點
+                let container = document.getElementById('tree-container');
+                if (!container) {
+                    container = document.getElementById('tree-section-root');
+                }
+                
+                if (!container) {
+                    setTimeout(fetchTree, 50);
+                    return;
+                }
+                container.innerHTML = '';
 
-            if(data.length === 0) {
-                container.innerHTML = `<p class="text-slate-600 italic">No storage structure detected.</p>`;
-            } else {
-                data.forEach(rootNode => renderNode(rootNode, 0));
+                function renderNode(node, depth = 0) {
+                    const row = document.createElement('div');
+                    row.className = `flex items-center justify-between group p-1.5 rounded-lg hover:bg-slate-800/40 cursor-pointer transition text-sm`;
+                    row.style.paddingLeft = `${depth * 1.25 + 0.5}rem`;
+                    
+                    row.onclick = (e) => {
+                        if (e.target.closest('button')) return;
+                        container.querySelectorAll('.bg-slate-800').forEach(el => {
+                            el.classList.remove('bg-slate-800', 'border-l-2', 'border-cyan-400');
+                        });
+                        row.classList.add('bg-slate-800', 'border-l-2', 'border-cyan-400');
+                        selectLocation(node.id, node.name);
+                    };
+
+                    const left = document.createElement('div');
+                    left.className = "flex items-center gap-2 truncate";
+                    left.innerHTML = `<span class="text-slate-500 font-mono text-xs">[ID:${node.id}]</span> 📁 <span class="text-slate-200">${node.name}</span>`;
+                    
+                    const right = document.createElement('div');
+                    right.className = "flex items-center gap-2 flex-shrink-0";
+                    
+                    // 語系安全防禦
+                    let suffix = "件";
+                    try {
+                        suffix = getLocaleText('tree_section', 'item_suffix');
+                        if (suffix === 'item_suffix') suffix = "件"; 
+                    } catch(e) {
+                        suffix = "件";
+                    }
+
+                    const countBadge = document.createElement('span');
+                    // 確保數字徽章完全不折行
+                    countBadge.className = `text-xs px-2 py-0.5 rounded-full font-mono whitespace-nowrap ${node.object_count > 0 ? 'bg-cyan-500/10 text-cyan-400' : 'bg-slate-800 text-slate-500'}`;
+                    countBadge.textContent = `${node.object_count} ${suffix}`;
+                    right.appendChild(countBadge);
+
+                    const editBtn = document.createElement('button');
+                    editBtn.className = "text-xs text-slate-500 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition px-1";
+                    editBtn.innerHTML = "✏️";
+                    editBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        enterLocationEditMode(node.id, node.name, node.parent_id);
+                    };
+                    right.appendChild(editBtn);
+
+                    row.appendChild(left);
+                    row.appendChild(right);
+                    container.appendChild(row);
+
+                    if (node.children && node.children.length > 0) {
+                        node.children.forEach(child => renderNode(child, depth + 1));
+                    }
+                }
+
+                if (data.length === 0) {
+                    container.innerHTML = `<p class="text-slate-500 italic p-2">暫無空間架構數據</p>`;
+                } else {
+                    data.forEach(rootNode => renderNode(rootNode, 0));
+                }
+            } catch (err) {
+                console.error("❌ 渲染空間樹失敗:", err);
             }
         }
 
@@ -258,7 +288,7 @@
             fetchObjects();
         }
 
-        // [READ] 獲取右下物資清單表格 (🌟 已移除 v1)
+        // [READ] 獲取右下物資清單表格 (API 已移除 v1)
         async function fetchObjects() {
             if (!currentSelectedLocationId) return;
             const res = await fetch(`/api/objects/by-location/${currentSelectedLocationId}?recursive=true`);
@@ -291,7 +321,7 @@
             });
         }
 
-        // [CREATE / UPDATE] 空間庫存樹節點提交 (🌟 已移除 v1)
+        // [CREATE / UPDATE] 空間庫存樹節點提交 (API 已移除 v1)
         async function submitLocation() {
             const nameInput = document.getElementById('new-loc-name');
             const parentInput = document.getElementById('new-loc-parent-id');
@@ -338,7 +368,7 @@
             }
         }
 
-        // [CREATE / UPDATE] 物資強校驗提交 (🌟 已移除 v1)
+        // [CREATE / UPDATE] 物資強校驗提交 (API 已移除 v1)
         async function submitObject() {
             if (!currentSelectedLocationId) {
                 alert("請先點擊選擇左側一個儲物空間，再執行物資登記入庫！");
@@ -395,7 +425,7 @@
             }
         }
 
-        // [DELETE] 物資刪除 (🌟 已移除 v1)
+        // [DELETE] 物資刪除 (API 已移除 v1)
         async function deleteObject(id) {
             if (!confirm(getLocaleText('list_section', 'confirm_delete'))) return;
             const res = await fetch(`/api/objects/${id}`, { method: 'DELETE' });
@@ -410,23 +440,23 @@
             document.getElementById('editing-location-id').value = id;
             document.getElementById('new-loc-name').value = name;
             document.getElementById('new-loc-parent-id').value = parentId || "";
-            document.getElementById('loc-parent-wrapper').classList.remove('hidden');
-            document.getElementById('loc-cancel-btn').classList.remove('hidden');
+            if(document.getElementById('loc-parent-wrapper')) document.getElementById('loc-parent-wrapper').classList.remove('hidden');
+            if(document.getElementById('loc-cancel-btn')) document.getElementById('loc-cancel-btn').classList.remove('hidden');
             
             const titleEl = document.getElementById('loc-form-title');
-            titleEl.textContent = getLocaleText('form_section', 'loc_edit_title', {id: id});
-            document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_save');
+            if(titleEl) titleEl.textContent = getLocaleText('form_section', 'loc_edit_title', {id: id});
+            if(document.getElementById('loc-submit-btn')) document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_save');
         }
 
         function cancelLocationEditMode() {
             document.getElementById('editing-location-id').value = "";
             document.getElementById('new-loc-name').value = "";
             document.getElementById('new-loc-parent-id').value = "";
-            document.getElementById('loc-parent-wrapper').classList.add('hidden');
-            document.getElementById('loc-cancel-btn').classList.add('hidden');
+            if(document.getElementById('loc-parent-wrapper')) document.getElementById('loc-parent-wrapper').classList.add('hidden');
+            if(document.getElementById('loc-cancel-btn')) document.getElementById('loc-cancel-btn').classList.add('hidden');
             
-            document.getElementById('loc-form-title').textContent = getLocaleText('form_section', 'loc_add_title');
-            document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_create');
+            if(document.getElementById('loc-form-title')) document.getElementById('loc-form-title').textContent = getLocaleText('form_section', 'loc_add_title');
+            if(document.getElementById('loc-submit-btn')) document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_create');
         }
 
         function enterObjectEditMode(id, name, templateType, extraDataB64) {
@@ -446,9 +476,9 @@
                 });
             }, 50);
 
-            document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_edit_title', {id: id});
-            document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_update');
-            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            if(document.getElementById('form-action-title')) document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_edit_title', {id: id});
+            if(document.getElementById('submit-btn')) document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_update');
+            if(document.getElementById('cancel-edit-btn')) document.getElementById('cancel-edit-btn').classList.remove('hidden');
         }
 
         function cancelEditMode() {
@@ -457,9 +487,9 @@
             document.getElementById('template-selector').disabled = false;
             renderDynamicForm();
 
-            document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_add_title');
-            document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_save');
-            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            if(document.getElementById('form-action-title')) document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_add_title');
+            if(document.getElementById('submit-btn')) document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_save');
+            if(document.getElementById('cancel-edit-btn')) document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
 
         window.addEventListener('DOMContentLoaded', initSystem);

@@ -8,7 +8,7 @@ from core.models import CoreObject, Location
 from core.plugin_loader import GLOBAL_TEMPLATES
 import jsonschema
 
-router = APIRouter(prefix="/api/objects", tags=["物資管理"])
+router = APIRouter(prefix="/api/objects", tags=["Objects"])
 
 # --- Pydantic 請求模型 ---
 class ObjectCreateSchema(BaseModel):

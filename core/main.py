@@ -14,17 +14,17 @@ def startup_event():
     print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} starting up...")
     init_db()
     load_plugins()
-    print(f"system language: {settings.Language}")
 
+# 🌟 這裡也精準去掉 v1，完美對齊前端 initSystem 的請求！
 @app.get("/api/system/config")
 async def get_system_config():
     return {
         "project_name": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "language": settings.Language  # 會回傳 "Chinese Traditional" 等
+        "language": settings.Language
     }
 
-# 🌟 已移除 v1：路徑精準變更為 /api/templates
+# 🌟 精準符合前端的 /api/templates
 @app.get("/api/templates")
 def get_available_templates():
     return {
@@ -32,11 +32,11 @@ def get_available_templates():
         "templates": GLOBAL_TEMPLATES
     }
 
-# 掛載其他 API 路由
+# 掛載其他 API 路由 (確保 router 檔案內已同步去掉 v1 prefix)
 app.include_router(location_router)
 app.include_router(object_router)
 
-# 🌟 靜態檔案託管安全檢查與掛載
+# 靜態檔案託管安全檢查與掛載
 dashboard_ui_path = os.path.join(os.path.dirname(__file__), "dashboard_ui")
 
 if os.path.exists(dashboard_ui_path):

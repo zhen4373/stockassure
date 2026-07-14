@@ -5,7 +5,7 @@ from typing import Optional, List
 from core.database import get_db
 from core.models import Location
 
-router = APIRouter(prefix="/api/v1/locations", tags=["空間管理"])
+router = APIRouter(prefix="/api/locations", tags=["Locations"])
 
 class LocationCreateSchema(BaseModel):
     name: str
