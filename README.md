@@ -45,6 +45,30 @@ stockassure/
 
 ```
 ## Start the System
-```bash
-uvicorn core.main:app --reload
+### On Linux/MacOS
+    ```bash
+    cd stockassure_path
 
+    source .venv/bin/activate
+
+    pip install fastapi uvicorn sqlalchemy
+
+    uvicorn core.main:app --reload
+    ```
+### On Windows
+    ```bash
+    cd stockassure_path
+
+    .venv\Scripts\activate
+
+    pip install fastapi uvicorn sqlalchemy
+
+    uvicorn core.main:app --reload
+    ```
+
+### When it successfully starts
+* **Access the Dashboard:** Open your browser and navigate to `http://localhost:8000`.
+
+### Close the System
+* **Stop the Server:** Press `Ctrl+C` in the terminal where you started the server.
+* **Deactivate the Virtual Environment:** If you used a virtual environment, run `deactivate` in the terminal to exit it.
