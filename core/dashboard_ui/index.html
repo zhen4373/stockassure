@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockAssure 控制台</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.5);
+            --border-card: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --theme-emerald: #10b981;
+            --theme-cyan: #06b6d4;
+        }
+        body { background-color: var(--bg-main); color: var(--text-main); }
+        .custom-card { background-color: var(--bg-card); border: 1px solid var(--border-card); }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <header id="header-root" class="border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md sticky top-0 z-50 h-16"></header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8 overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div id="tree-section-root" class="custom-card rounded-2xl p-6 min-h-[400px] max-h-[600px] overflow-y-auto"></div>
+            <div id="form-section-root" class="lg:col-span-2"></div>
+        </div>
+        <div id="list-section-root" class="custom-card rounded-2xl p-6"></div>
+    </main>
+
+    <script>
+        let CURRENT_LANG = 'zh-TW';
+        let systemLocales = {};
+        let currentSelectedLocationId = null;
+        let templatesMeta = {};
+
+        // 2. 系統架構初始化引擎 (🌟 已移除 v1)
+        async function initSystem() {
+            try {
+                const sysConfigRes = await fetch('/api/system/config');
+                if (sysConfigRes.ok) {
+                    const sysConfig = await sysConfigRes.json();
+                    if (sysConfig.language === "Chinese Traditional") {
+                        CURRENT_LANG = 'zh-TW';
+                    } else {
+                        CURRENT_LANG = 'en-GB';
+                    }
+                }
+
+                const uiRes = await fetch('/ui_config.json');
+                if (uiRes.ok) {
+                    const uiConfig = await uiRes.json();
+                    for (const [key, value] of Object.entries(uiConfig.styles)) {
+                        document.documentElement.style.setProperty(key, value);
+                    }
+                }
+
+                await Promise.all([
+                    loadComponent('header', '#header-root'),
+                    loadComponent('tree_section', '#tree-section-root'),
+                    loadComponent('form_section', '#form-section-root'),
+                    loadComponent('list_section', '#list-section-root')
+                ]);
+
+                await fetchTemplates();
+                await fetchTree();
+                
+            } catch (err) {
+                console.error("❌ StockAssure 模組化引擎初始化失敗:", err);
+            }
+        }
+
+        async function loadComponent(name, rootSelector) {
+            const [htmlRes, langRes] = await Promise.all([
+                fetch(`/components/${name}/${name}.html`),
+                fetch(`/components/${name}/language.json`)
+            ]);
+
+            if (!htmlRes.ok || !langRes.ok) {
+                console.error(`無法載入組件: ${name}`);
+                return;
+            }
+
+            const htmlText = await htmlRes.text();
+            const langJson = await langRes.json();
+            
+            systemLocales[name] = langJson[CURRENT_LANG] || langJson['zh-TW'];
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlText;
+
+            tempDiv.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (systemLocales[name][key]) {
+                    el.textContent = systemLocales[name][key];
+                }
+            });
+
+            tempDiv.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (systemLocales[name][key]) {
+                    el.setAttribute('placeholder', systemLocales[name][key]);
+                }
+            });
+
+            document.querySelector(rootSelector).innerHTML = tempDiv.innerHTML;
+        }
+
+        function getLocaleText(component, key, replacements = {}) {
+            let text = (systemLocales[component] && systemLocales[component][key]) ? systemLocales[component][key] : key;
+            for (const [k, v] of Object.entries(replacements)) {
+                text = text.replace(`{${k}}`, v);
+            }
+            return text;
+        }
+
+        // [READ] 獲取外掛模板定義 (🌟 已移除 v1)
+        async function fetchTemplates() {
+            const res = await fetch('/api/templates');
+            if (res.ok) {
+                const data = await res.json();
+                templatesMeta = data.templates;
+                const selector = document.getElementById('template-selector');
+                if (selector) {
+                    selector.innerHTML = '';
+                    Object.keys(templatesMeta).forEach(key => {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        opt.textContent = key;
+                        selector.appendChild(opt);
+                    });
+                    renderDynamicForm();
+                }
+            }
+        }
+
+        function renderDynamicForm() {
+            const selector = document.getElementById('template-selector');
+            const container = document.getElementById('dynamic-form-fields');
+            if (!selector || !container) return;
+
+            const tName = selector.value;
+            const schema = templatesMeta[tName]?.schema;
+            container.innerHTML = '';
+            if (!schema || !schema.properties) return;
+
+            const requiredFields = schema.required || [];
+
+            for (const [field, prop] of Object.entries(schema.properties)) {
+                const wrap = document.createElement('div');
+                wrap.className = "flex flex-col gap-1 text-xs";
+
+                const isRequired = requiredFields.includes(field);
+                const label = document.createElement('label');
+                label.className = "text-slate-400 font-medium";
+                label.innerHTML = `${field} ${isRequired ? '<span class="text-red-500">*</span>' : ''}`;
+                wrap.appendChild(label);
+
+                let hint = prop.default !== undefined ? getLocaleText('form_section', 'default_hint', {default: prop.default}) : '';
+
+                if (prop.enum) {
+                    const sel = document.createElement('select');
+                    sel.name = field;
+                    sel.className = "bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs";
+                    
+                    const defOpt = document.createElement('option');
+                    defOpt.value = "";
+                    defOpt.textContent = getLocaleText('form_section', 'select_default') + ` ${hint}`;
+                    sel.appendChild(defOpt);
+
+                    prop.enum.forEach(v => {
+                        const o = document.createElement('option');
+                        o.value = v;
+                        o.textContent = v;
+                        selector.appendChild(o); // 修正為 sel 避免渲染錯誤
+                        sel.appendChild(o);
+                    });
+                    wrap.appendChild(sel);
+                } else {
+                    const input = document.createElement('input');
+                    input.name = field;
+                    input.type = prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text';
+                    input.placeholder = prop.type + ` ${hint}`;
+                    input.className = "bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-cyan-500";
+                    wrap.appendChild(input);
+                }
+                container.appendChild(wrap);
+            }
+        }
+
+        // [READ] 獲取空間樹狀圖 (🌟 已移除 v1)
+        async function fetchTree() {
+            const res = await fetch('/api/locations/tree-view');
+            if (!res.ok) return;
+            const data = await res.json();
+            const container = document.getElementById('tree-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            function renderNode(node, depth = 0) {
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between group p-1.5 rounded-lg hover:bg-slate-800/40 cursor-pointer transition`;
+                row.style.paddingLeft = `${depth * 1.25 + 0.5}rem`;
+                
+                row.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    document.querySelectorAll('#tree-container > div').forEach(el => el.classList.remove('bg-slate-800', 'border-l-2', 'border-cyan-400'));
+                    row.classList.add('bg-slate-800', 'border-l-2', 'border-cyan-400');
+                    selectLocation(node.id, node.name);
+                };
+
+                const left = document.createElement('div');
+                left.className = "flex items-center gap-2 truncate";
+                left.innerHTML = `<span class="text-slate-500 font-mono text-xs">[ID:${node.id}]</span> 📁 <span>${node.name}</span>`;
+                
+                const right = document.createElement('div');
+                right.className = "flex items-center gap-2 flex-shrink-0";
+                
+                const countBadge = document.createElement('span');
+                countBadge.className = `text-xs px-2 py-0.5 rounded-full font-mono ${node.object_count > 0 ? 'bg-cyan-500/10 text-cyan-400' : 'bg-slate-800 text-slate-500'}`;
+                countBadge.textContent = `${node.object_count} ${getLocaleText('tree_section', 'item_suffix')}`;
+                right.appendChild(countBadge);
+
+                const editBtn = document.createElement('button');
+                editBtn.className = "text-xs text-slate-500 hover:text-amber-400 opacity-0 group-hover:opacity-100 transition px-1";
+                editBtn.innerHTML = "✏️";
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    enterLocationEditMode(node.id, node.name, node.parent_id);
+                };
+                right.appendChild(editBtn);
+
+                row.appendChild(left);
+                row.appendChild(right);
+                container.appendChild(row);
+
+                if (node.children && node.children.length > 0) {
+                    node.children.forEach(child => renderNode(child, depth + 1));
+                }
+            }
+
+            if(data.length === 0) {
+                container.innerHTML = `<p class="text-slate-600 italic">No storage structure detected.</p>`;
+            } else {
+                data.forEach(rootNode => renderNode(rootNode, 0));
+            }
+        }
+
+        function selectLocation(id, name) {
+            currentSelectedLocationId = id;
+            const titleEl = document.getElementById('list-title');
+            if (titleEl) {
+                titleEl.textContent = getLocaleText('list_section', 'dynamic_table_title', {name: name});
+            }
+            fetchObjects();
+        }
+
+        // [READ] 獲取右下物資清單表格 (🌟 已移除 v1)
+        async function fetchObjects() {
+            if (!currentSelectedLocationId) return;
+            const res = await fetch(`/api/objects/by-location/${currentSelectedLocationId}?recursive=true`);
+            const tbody = document.getElementById('object-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!res.ok) return;
+            const list = await res.json();
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">${getLocaleText('list_section', 'space_empty')}</td></tr>`;
+                return;
+            }
+
+            list.forEach(obj => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/30 transition";
+                
+                tr.innerHTML = `
+                    <td class="py-3 font-medium text-slate-200">${obj.name}</td>
+                    <td class="py-3 font-mono text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${obj.template_type}</span></td>
+                    <td class="py-3 font-mono text-xs text-emerald-400 max-w-md truncate" title='${JSON.stringify(obj.extra_data)}'>${JSON.stringify(obj.extra_data)}</td>
+                    <td class="py-3 text-right space-x-2">
+                        <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', ${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))})" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
+                        <button onclick="deleteObject('${obj.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_delete')}</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // [CREATE / UPDATE] 空間庫存樹節點提交 (🌟 已移除 v1)
+        async function submitLocation() {
+            const nameInput = document.getElementById('new-loc-name');
+            const parentInput = document.getElementById('new-loc-parent-id');
+            const editingIdInput = document.getElementById('editing-location-id');
+            
+            if (!nameInput.value.trim()) {
+                alert(getLocaleText('form_section', 'err_no_loc_name'));
+                return;
+            }
+
+            const isEditMode = editingIdInput.value !== "";
+            let url = '/api/locations/';
+            let method = 'POST';
+            
+            const payload = {
+                name: nameInput.value.trim(),
+                parent_id: (currentSelectedLocationId || null)
+            };
+
+            if (isEditMode) {
+                const locId = editingIdInput.value;
+                url = `/api/locations/${locId}`;
+                method = 'PUT';
+                payload.parent_id = parentInput.value.trim() ? parseInt(parentInput.value.trim()) : null;
+            }
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(isEditMode 
+                    ? getLocaleText('form_section', 'msg_loc_move_success', {name: payload.name})
+                    : getLocaleText('form_section', 'msg_loc_create_success', {name: payload.name})
+                );
+                nameInput.value = '';
+                cancelLocationEditMode();
+                await fetchTree();
+            } else {
+                const err = await res.json();
+                alert(`Error: ${JSON.stringify(err.detail)}`);
+            }
+        }
+
+        // [CREATE / UPDATE] 物資強校驗提交 (🌟 已移除 v1)
+        async function submitObject() {
+            if (!currentSelectedLocationId) {
+                alert("請先點擊選擇左側一個儲物空間，再執行物資登記入庫！");
+                return;
+            }
+
+            const nameInput = document.getElementById('new-obj-name');
+            const selector = document.getElementById('template-selector');
+            const editingIdInput = document.getElementById('editing-object-id');
+            
+            if (!nameInput.value.trim()) {
+                alert(getLocaleText('form_section', 'err_no_obj_name'));
+                return;
+            }
+
+            const isEditMode = editingIdInput.value !== "";
+            const extraData = {};
+            document.querySelectorAll('#dynamic-form-fields input, #dynamic-form-fields select').forEach(input => {
+                if (input.value !== "") {
+                    extraData[input.name] = input.type === 'number' ? parseFloat(input.value) : input.value;
+                }
+            });
+
+            const payload = {
+                name: nameInput.value.trim(),
+                location_id: currentSelectedLocationId,
+                template_type: selector.value,
+                extra_data: extraData
+            };
+
+            let url = '/api/objects/';
+            let method = 'POST';
+
+            if (isEditMode) {
+                url = `/api/objects/${editingIdInput.value}`;
+                method = 'PUT';
+            }
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(isEditMode ? getLocaleText('form_section', 'msg_obj_update_success') : getLocaleText('form_section', 'msg_obj_create_success'));
+                nameInput.value = '';
+                cancelEditMode();
+                await fetchTree();
+                await fetchObjects();
+            } else {
+                const err = await res.json();
+                alert(`❌ 補全校驗失敗 (422/500):\n${JSON.stringify(err.detail)}`);
+            }
+        }
+
+        // [DELETE] 物資刪除 (🌟 已移除 v1)
+        async function deleteObject(id) {
+            if (!confirm(getLocaleText('list_section', 'confirm_delete'))) return;
+            const res = await fetch(`/api/objects/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert(getLocaleText('list_section', 'msg_delete_success'));
+                await fetchTree();
+                await fetchObjects();
+            }
+        }
+
+        function enterLocationEditMode(id, name, parentId) {
+            document.getElementById('editing-location-id').value = id;
+            document.getElementById('new-loc-name').value = name;
+            document.getElementById('new-loc-parent-id').value = parentId || "";
+            document.getElementById('loc-parent-wrapper').classList.remove('hidden');
+            document.getElementById('loc-cancel-btn').classList.remove('hidden');
+            
+            const titleEl = document.getElementById('loc-form-title');
+            titleEl.textContent = getLocaleText('form_section', 'loc_edit_title', {id: id});
+            document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_save');
+        }
+
+        function cancelLocationEditMode() {
+            document.getElementById('editing-location-id').value = "";
+            document.getElementById('new-loc-name').value = "";
+            document.getElementById('new-loc-parent-id').value = "";
+            document.getElementById('loc-parent-wrapper').classList.add('hidden');
+            document.getElementById('loc-cancel-btn').classList.add('hidden');
+            
+            document.getElementById('loc-form-title').textContent = getLocaleText('form_section', 'loc_add_title');
+            document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_create');
+        }
+
+        function enterObjectEditMode(id, name, templateType, extraDataB64) {
+            document.getElementById('editing-object-id').value = id;
+            document.getElementById('new-obj-name').value = name;
+            document.getElementById('template-selector').value = templateType;
+            document.getElementById('template-selector').disabled = true;
+            
+            renderDynamicForm();
+
+            const extraData = JSON.parse(decodeURIComponent(window.atob(extraDataB64)));
+            setTimeout(() => {
+                document.querySelectorAll('#dynamic-form-fields input, #dynamic-form-fields select').forEach(input => {
+                    if (extraData[input.name] !== undefined) {
+                        input.value = extraData[input.name];
+                    }
+                });
+            }, 50);
+
+            document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_edit_title', {id: id});
+            document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_update');
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+        }
+
+        function cancelEditMode() {
+            document.getElementById('editing-object-id').value = "";
+            document.getElementById('new-obj-name').value = "";
+            document.getElementById('template-selector').disabled = false;
+            renderDynamicForm();
+
+            document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_add_title');
+            document.getElementById('submit-btn').textContent = getLocaleText('form_section', 'obj_btn_save');
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+        }
+
+        window.addEventListener('DOMContentLoaded', initSystem);
+    </script>
+</body>
+</html>

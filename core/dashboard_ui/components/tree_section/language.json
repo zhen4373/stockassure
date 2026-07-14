@@ -1,0 +1,14 @@
+{
+  "zh-TW": {
+    "title": "空間架構樹",
+    "btn_refresh": "🔄 重新整理",
+    "loading": "載入空間中...",
+    "item_suffix": "件"
+  },
+  "en-GB": {
+    "title": "Spatial Structure Tree",
+    "btn_refresh": "🔄 Refresh",
+    "loading": "Loading locations...",
+    "item_suffix": "items"
+  }
+}

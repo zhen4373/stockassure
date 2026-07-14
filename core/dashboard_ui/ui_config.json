@@ -1,0 +1,16 @@
+{
+  "theme": "dark",
+  "styles": {
+    "--bg-main": "#0f172a",
+    "--bg-card": "rgba(30, 41, 59, 0.5)",
+    "--border-card": "#1e293b",
+    "--text-main": "#f1f5f9",
+    "--text-muted": "#94a3b8",
+    "--theme-emerald": "#10b981",
+    "--theme-cyan": "#06b6d4",
+    "--theme-amber": "#f59e0b",
+    "--theme-red": "#ef4444",
+    "--card-padding": "1.5rem",
+    "--card-radius": "1rem"
+  }
+}

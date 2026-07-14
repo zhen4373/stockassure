@@ -1,0 +1,33 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+        <h3 id="loc-form-title" class="text-sm font-semibold text-slate-300 mb-3" data-i18n="loc_add_title">📁 新增儲物空間</h3>
+        <div class="flex flex-col gap-2">
+            <input id="new-loc-name" type="text" data-i18n-placeholder="loc_name_placeholder" placeholder="空間名稱 (如: 抽屜 A)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 text-white">
+            <div id="loc-parent-wrapper" class="hidden flex flex-col gap-1">
+                <label class="text-xs text-slate-400 font-mono" data-i18n="loc_parent_label">變更父級空間 ID (留空代表改為根空間)</label>
+                <input id="new-loc-parent-id" type="number" data-i18n-placeholder="loc_parent_placeholder" placeholder="父空間 ID (如: 1)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-1.5 text-xs text-white focus:outline-none">
+            </div>
+            <input id="editing-location-id" type="hidden" value="">
+            
+            <div class="flex gap-2">
+                <button id="loc-submit-btn" onclick="submitLocation()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2 rounded-xl text-sm transition" data-i18n="loc_btn_create">建立空間</button>
+                <button id="loc-cancel-btn" onclick="cancelLocationEditMode()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm transition" data-i18n="btn_cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6">
+        <h3 id="form-action-title" class="text-sm font-semibold text-slate-300 mb-3" data-i18n="obj_add_title">⚡ 外掛模板動態登錄 (新增模式)</h3>
+        <div class="flex flex-col gap-2">
+            <select id="template-selector" onchange="renderDynamicForm()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none"></select>
+            <input id="new-obj-name" type="text" data-i18n-placeholder="obj_name_placeholder" placeholder="物品自訂名稱 (如: 綠色扁線)" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none">
+            <input id="editing-object-id" type="hidden" value="">
+        </div>
+        <div id="dynamic-form-fields" class="mt-3 space-y-3 pt-3 border-t border-slate-700/50"></div>
+        
+        <div class="flex gap-2 mt-4">
+            <button id="submit-btn" onclick="submitObject()" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition" data-i18n="obj_btn_save">入庫校驗並存檔</button>
+            <button id="cancel-edit-btn" onclick="cancelEditMode()" class="hidden bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm transition" data-i18n="btn_cancel">取消</button>
+        </div>
+    </div>
+</div>

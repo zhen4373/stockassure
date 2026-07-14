@@ -11,23 +11,35 @@ app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
 @app.on_event("startup")
 def startup_event():
-    print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} 正在啟動...")
+    print(f"🚀 {settings.PROJECT_NAME} v{settings.VERSION} starting up...")
     init_db()
     load_plugins()
+    print(f"system language: {settings.Language}")
 
-# 1. 確保這個 API 的路徑「精準符合」前端 Fetch 的網址：/api/v1/templates
-@app.get("/api/v1/templates")
+@app.get("/api/system/config")
+async def get_system_config():
+    return {
+        "project_name": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "language": settings.Language  # 會回傳 "Chinese Traditional" 等
+    }
+
+# 🌟 已移除 v1：路徑精準變更為 /api/templates
+@app.get("/api/templates")
 def get_available_templates():
     return {
         "count": len(GLOBAL_TEMPLATES),
         "templates": GLOBAL_TEMPLATES
     }
 
-# 2. 掛載其他 API 路由
+# 掛載其他 API 路由
 app.include_router(location_router)
 app.include_router(object_router)
 
-# 3. 靜態檔案託管一定要放在「最後面」！
-static_path = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_path):
-    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+# 🌟 靜態檔案託管安全檢查與掛載
+dashboard_ui_path = os.path.join(os.path.dirname(__file__), "dashboard_ui")
+
+if os.path.exists(dashboard_ui_path):
+    app.mount("/", StaticFiles(directory=dashboard_ui_path, html=True), name="dashboard_ui")
+else:
+    print(f"⚠️ 警告：找不到前端 UI 目錄，路徑應為: {dashboard_ui_path}")
