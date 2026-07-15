@@ -31,18 +31,19 @@ def load_plugins():
             try:
                 with open(info_file, "r", encoding="utf-8") as f:
                     plugin_info = json.load(f)
+                    str(plugin_name) = plugin_info.get('name')
                 
                 # 檢查外掛是否被啟用 (enabled)
                 if not plugin_info.get("enabled", False):
-                    print(f"🚫 外掛 [{plugin_info.get('name')}] 已被禁用，跳過。")
+                    print(f"🚫 外掛 [plugin_mame] 已被禁用，跳過。")
                     continue
                 
-                print(f"📦 發現已啟用外掛: {plugin_info.get('name')} (v{plugin_info.get('version')})")
+                print(f"📦 發現已啟用外掛: {plugin_name} (v{plugin_info.get('version')})")
                 
                 # 掃描該外掛底下的 templates/ 資料夾
                 templates_dir = plugin_path / "templates"
                 if templates_dir.exists() and templates_dir.is_dir():
-                    for t_entry in os.scandir(templates_dir):
+                    for t_entry in os.scandir(templates_dir): #loop all template under 'template'
                         if t_entry.is_file() and t_entry.name.endswith(".json"):
                             template_path = Path(t_entry.path)
                             template_key = template_path.stem  # 拿檔名當作 Key (例如: network_cable_template)
@@ -64,4 +65,4 @@ def template_list():
    count = 0
    for template_name in GLOBAL_TEMPLATES.keys():
         count += 1
-        print(f"   └─ {count}: {plugin_info.get('name')}-{template_name}")
+        print(f"   └─ {count}:{template_name} from {}")
