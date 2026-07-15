@@ -64,4 +64,4 @@ def template_list():
    count = 0
    for template_name in GLOBAL_TEMPLATES.keys():
         count += 1
-        print(f"   └─ {count}: {template_name}")
+        print(f"   └─ {count}: {plugin_dir}-{template_name}")
