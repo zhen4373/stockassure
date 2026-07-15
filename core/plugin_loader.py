@@ -31,11 +31,11 @@ def load_plugins():
             try:
                 with open(info_file, "r", encoding="utf-8") as f:
                     plugin_info = json.load(f)
-                    str(plugin_name) = plugin_info.get('name')
+                    plugin_name = plugin_info.get('name')
                 
                 # 檢查外掛是否被啟用 (enabled)
                 if not plugin_info.get("enabled", False):
-                    print(f"🚫 外掛 [plugin_mame] 已被禁用，跳過。")
+                    print(f"🚫 外掛 [{plugin_mame}] 已被禁用，跳過。")
                     continue
                 
                 print(f"📦 發現已啟用外掛: {plugin_name} (v{plugin_info.get('version')})")
