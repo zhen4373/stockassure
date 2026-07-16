@@ -44,31 +44,51 @@ stockassure/
 └── core/                    # FastAPI Backend Source Code
 
 ```
-## Start the System
-### On Linux/MacOS
-```text
-    cd stockassure_path
+## Install and Run StockAssure
 
-    source .venv/bin/activate
+### 1. Create and activate a Python virtual environment
 
-    pip install fastapi uvicorn sqlalchemy
-
-    uvicorn core.main:app --reload
-```
-### On Windows
+#### On macOS / Linux
 ```bash
-    cd stockassure_path
-
-    .venv\Scripts\activate
-
-    pip install fastapi uvicorn sqlalchemy
-
-    uvicorn core.main:app --reload
+cd /Users/anthonykwok/Documents/stockassure
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-### When it successfully starts
-* **Access the Dashboard:** Open your browser and navigate to `http://localhost:8000`.
+#### On Windows (PowerShell)
+```powershell
+cd C:\Users\anthonykwok\Documents\stockassure
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-### Close the System
-* **Stop the Server:** Press `Ctrl+C` in the terminal where you started the server.
-* **Deactivate the Virtual Environment:** If you used a virtual environment, run `deactivate` in the terminal to exit it.
+#### On Windows (Command Prompt)
+```cmd
+cd C:\Users\anthonykwok\Documents\stockassure
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 2. Install project dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 3. Start the backend server
+```bash
+uvicorn core.main:app --reload
+```
+
+### 4. Open the dashboard
+Open your browser and go to:
+
+`http://localhost:8000`
+
+### 5. Stop the server
+Press `Ctrl+C` in the terminal where the server is running.
+
+### 6. Deactivate the virtual environment
+```bash
+deactivate
+```
