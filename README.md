@@ -46,12 +46,19 @@ stockassure/
 ```
 ## Install and Run StockAssure
 
-### 1. Create and activate a Python virtual environment
+### 1. Open a terminal and go to the project folder
+```bash
+cd /Users/anthonykwok/Documents/stockassure
+```
 
+### 2. Create a virtual environment
+```bash
+python3 -m venv .venv
+```
+
+### 3. Activate the virtual environment
 #### On macOS / Linux
 ```bash
-cd path/to/stockassure
-python3 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -64,31 +71,35 @@ python -m venv .venv
 
 #### On Windows (Command Prompt)
 ```cmd
-cd path/to/stockassure
+cd C:\Users\anthonykwok\Documents\stockassure
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\activate
 ```
 
-### 2. Install project dependencies
+> If activation worked, your prompt should show `(.venv)`.
+
+### 4. Install project dependencies
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Start the backend server
+### 5. Start the backend server
 ```bash
-uvicorn core.main:app --reload
+python -m uvicorn core.main:app --reload
 ```
 
-### 4. Open the dashboard
+> Run this command from the project root with `.venv` activated.
+
+### 6. Open the dashboard
 Open your browser and go to:
 
 `http://localhost:8000`
 
-### 5. Stop the server
+### 7. Stop the server
 Press `Ctrl+C` in the terminal where the server is running.
 
-### 6. Deactivate the virtual environment
+### 8. Deactivate the virtual environment
 ```bash
 deactivate
 ```
