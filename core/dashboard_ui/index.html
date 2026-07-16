@@ -386,8 +386,41 @@
                 } else {
                     data.forEach(rootNode => renderNode(rootNode, 0));
                 }
+                populateLocationSelector(data);
             } catch (err) {
                 console.error("❌ 渲染空間樹失敗:", err);
+            }
+        }
+
+        function flattenLocationTree(nodes, result = []) {
+            nodes.forEach(node => {
+                result.push({ id: node.id, name: node.name, parent_id: node.parent_id });
+                if (node.children && node.children.length > 0) {
+                    flattenLocationTree(node.children, result);
+                }
+            });
+            return result;
+        }
+
+        function populateLocationSelector(treeData) {
+            const selector = document.getElementById('object-location-selector');
+            if (!selector) return;
+            const locations = flattenLocationTree(treeData);
+            selector.innerHTML = '';
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = '請選擇儲物空間';
+            selector.appendChild(placeholderOption);
+
+            locations.forEach(loc => {
+                const opt = document.createElement('option');
+                opt.value = loc.id;
+                opt.textContent = `[${loc.id}] ${loc.name}`;
+                selector.appendChild(opt);
+            });
+
+            if (currentSelectedLocationId) {
+                selector.value = String(currentSelectedLocationId);
             }
         }
 
@@ -396,6 +429,10 @@
             const titleEl = document.getElementById('list-title');
             if (titleEl) {
                 titleEl.textContent = getLocaleText('list_section', 'dynamic_table_title', {name: name});
+            }
+            const selector = document.getElementById('object-location-selector');
+            if (selector && !document.getElementById('editing-object-id').value) {
+                selector.value = String(id);
             }
             fetchObjects();
         }
@@ -419,16 +456,41 @@
             list.forEach(obj => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-900/30 transition";
-                
-                tr.innerHTML = `
-                    <td class="py-3 font-medium text-slate-200 align-top">${obj.name}</td>
-                    <td class="py-3 font-mono text-xs text-slate-400 align-top"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${templatesMeta[obj.template_type]?.display_name || obj.template_type}</span></td>
-                    <td class="py-3 align-top">${renderValidationDetails(obj.template_type, obj.extra_data)}</td>
-                    <td class="py-3 text-right space-x-2 align-top">
-                        <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', '${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))}')" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
-                        <button onclick="deleteObject('${obj.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_delete')}</button>
-                    </td>
-                `;
+
+                const nameTd = document.createElement('td');
+                nameTd.className = 'py-3 font-medium text-slate-200 align-top';
+                nameTd.textContent = obj.name;
+
+                const templateTd = document.createElement('td');
+                templateTd.className = 'py-3 font-mono text-xs text-slate-400 align-top';
+                const templateBadge = document.createElement('span');
+                templateBadge.className = 'bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60';
+                templateBadge.textContent = templatesMeta[obj.template_type]?.display_name || obj.template_type;
+                templateTd.appendChild(templateBadge);
+
+                const detailTd = document.createElement('td');
+                detailTd.className = 'py-3 align-top';
+                detailTd.innerHTML = renderValidationDetails(obj.template_type, obj.extra_data);
+
+                const actionsTd = document.createElement('td');
+                actionsTd.className = 'py-3 text-right space-x-2 align-top';
+                const editBtn = document.createElement('button');
+                editBtn.className = 'text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition';
+                editBtn.textContent = getLocaleText('list_section', 'btn_edit');
+                editBtn.onclick = () => enterObjectEditMode(obj.id, obj.name, obj.template_type, obj.location_id, window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data))));
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition';
+                deleteBtn.textContent = getLocaleText('list_section', 'btn_delete');
+                deleteBtn.onclick = () => deleteObject(obj.id);
+
+                actionsTd.appendChild(editBtn);
+                actionsTd.appendChild(deleteBtn);
+
+                tr.appendChild(nameTd);
+                tr.appendChild(templateTd);
+                tr.appendChild(detailTd);
+                tr.appendChild(actionsTd);
                 tbody.appendChild(tr);
             });
         }
@@ -489,17 +551,19 @@
 
         // [CREATE / UPDATE] 物資強校驗提交 (API 已移除 v1)
         async function submitObject() {
-            if (!currentSelectedLocationId) {
-                alert("請先點擊選擇左側一個儲物空間，再執行物資登記入庫！");
-                return;
-            }
-
             const nameInput = document.getElementById('new-obj-name');
             const selector = document.getElementById('template-selector');
+            const locationSelector = document.getElementById('object-location-selector');
             const editingIdInput = document.getElementById('editing-object-id');
             
             if (!nameInput.value.trim()) {
                 alert(getLocaleText('form_section', 'err_no_obj_name'));
+                return;
+            }
+
+            const selectedLocationId = locationSelector?.value ? parseInt(locationSelector.value, 10) : null;
+            if (!selectedLocationId) {
+                alert("請選擇儲物空間後再提交物資。");
                 return;
             }
 
@@ -513,7 +577,7 @@
 
             const payload = {
                 name: nameInput.value.trim(),
-                location_id: currentSelectedLocationId,
+                location_id: selectedLocationId,
                 template_type: selector.value,
                 extra_data: extraData
             };
@@ -597,19 +661,24 @@
             if(document.getElementById('loc-submit-btn')) document.getElementById('loc-submit-btn').textContent = getLocaleText('form_section', 'loc_btn_create');
         }
 
-        function enterObjectEditMode(id, name, templateType, extraDataB64) {
+        function enterObjectEditMode(id, name, templateType, locationId, extraDataB64) {
             switchFormTab('object');
             document.getElementById('editing-object-id').value = id;
             document.getElementById('new-obj-name').value = name;
             document.getElementById('template-selector').value = templateType;
             document.getElementById('template-selector').disabled = true;
+
+            const locationSelector = document.getElementById('object-location-selector');
+            if (locationSelector && locationId) {
+                locationSelector.value = String(locationId);
+            }
             
             renderDynamicForm();
 
             const extraData = JSON.parse(decodeURIComponent(window.atob(extraDataB64)));
             setTimeout(() => {
                 document.querySelectorAll('#dynamic-form-fields input, #dynamic-form-fields select').forEach(input => {
-                    if (extraData[input.name] !== undefined) {
+                    if (input.name && extraData[input.name] !== undefined) {
                         input.value = extraData[input.name];
                     }
                 });
@@ -624,6 +693,10 @@
             document.getElementById('editing-object-id').value = "";
             document.getElementById('new-obj-name').value = "";
             document.getElementById('template-selector').disabled = false;
+            const locationSelector = document.getElementById('object-location-selector');
+            if (locationSelector) {
+                locationSelector.value = currentSelectedLocationId ? String(currentSelectedLocationId) : "";
+            }
             renderDynamicForm();
 
             if(document.getElementById('form-action-title')) document.getElementById('form-action-title').textContent = getLocaleText('form_section', 'obj_add_title');
