@@ -35,7 +35,7 @@ def load_plugins():
                 
                 # 檢查外掛是否被啟用 (enabled)
                 if not plugin_info.get("enabled", False):
-                    print(f"🚫 外掛 [{plugin_mame}] 已被禁用，跳過。")
+                    print(f"🚫 外掛 [{plugin_name}] 已被禁用，跳過。")
                     continue
                 
                 print(f"📦 發現已啟用外掛: {plugin_name} (v{plugin_info.get('version')})")
