@@ -50,7 +50,7 @@ stockassure/
 
 #### On macOS / Linux
 ```bash
-cd /Users/anthonykwok/Documents/stockassure
+cd path/to/stockassure
 python3 -m venv .venv
 source .venv/bin/activate
 ```
@@ -64,7 +64,7 @@ python -m venv .venv
 
 #### On Windows (Command Prompt)
 ```cmd
-cd C:\Users\anthonykwok\Documents\stockassure
+cd path/to/stockassure
 python -m venv .venv
 .venv\Scripts\activate
 ```
