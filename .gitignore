@@ -58,3 +58,4 @@ nosetests.xml
 *.db
 *.sqlite
 *.sqlite3
+example_data.py
