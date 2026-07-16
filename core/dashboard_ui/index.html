@@ -139,17 +139,21 @@
             return text;
         }
 
-        function renderValidationDetails(extraData) {
+        function renderValidationDetails(templateType, extraData) {
             if (!extraData || typeof extraData !== 'object') {
                 return `<div class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-slate-200 text-xs break-words whitespace-normal">${String(extraData)}</div>`;
             }
 
+            const schema = templatesMeta[templateType]?.schema || {};
+            const labelMap = schema.properties || {};
+
             const rows = Object.entries(extraData).map(([key, value]) => {
                 const displayValue = value === null ? 'null' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+                const title = labelMap[key]?.title || key;
                 return `
-                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-3 py-1 border-b border-slate-800/70 last:border-b-0 min-w-0">
-                        <div class="text-slate-400 text-[11px] uppercase tracking-[0.12em] whitespace-nowrap">${key}</div>
-                        <div class="text-slate-100 text-xs break-words whitespace-normal min-w-0">${displayValue}</div>
+                    <div class="grid grid-cols-[minmax(120px,200px)_minmax(0,1fr)] gap-x-4 py-2 border-b border-slate-800/70 last:border-b-0 min-w-0">
+                        <div class="text-slate-400 text-[11px] uppercase tracking-[0.12em] leading-5 break-words">${title}</div>
+                        <div class="text-slate-100 text-xs break-words whitespace-normal min-w-0 leading-6">${displayValue}</div>
                     </div>
                 `;
             }).join('');
@@ -255,10 +259,12 @@
                 const isRequired = requiredFields.includes(field);
                 const label = document.createElement('label');
                 label.className = "text-slate-400 font-medium";
-                label.innerHTML = `${field} ${isRequired ? '<span class="text-red-500">*</span>' : ''}`;
+                const titleText = prop.title || field;
+                label.innerHTML = `${titleText} ${isRequired ? '<span class="text-red-500">*</span>' : ''}`;
                 wrap.appendChild(label);
 
                 let hint = prop.default !== undefined ? getLocaleText('form_section', 'default_hint', {default: prop.default}) : '';
+                const placeholderText = `${titleText}${hint ? ' - ' + hint : ''}`;
 
                 if (prop.enum) {
                     const sel = document.createElement('select');
@@ -267,7 +273,7 @@
                     
                     const defOpt = document.createElement('option');
                     defOpt.value = "";
-                    defOpt.textContent = getLocaleText('form_section', 'select_default') + ` ${hint}`;
+                    defOpt.textContent = getLocaleText('form_section', 'select_default') + ` ${placeholderText}`;
                     sel.appendChild(defOpt);
 
                     prop.enum.forEach(v => {
@@ -281,7 +287,7 @@
                     const input = document.createElement('input');
                     input.name = field;
                     input.type = prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text';
-                    input.placeholder = prop.type + ` ${hint}`;
+                    input.placeholder = placeholderText;
                     input.className = "bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-cyan-500";
                     wrap.appendChild(input);
                 }
@@ -416,8 +422,8 @@
                 
                 tr.innerHTML = `
                     <td class="py-3 font-medium text-slate-200 align-top">${obj.name}</td>
-                    <td class="py-3 font-mono text-xs text-slate-400 align-top"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${obj.template_type}</span></td>
-                    <td class="py-3 align-top">${renderValidationDetails(obj.extra_data)}</td>
+                    <td class="py-3 font-mono text-xs text-slate-400 align-top"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">${templatesMeta[obj.template_type]?.display_name || obj.template_type}</span></td>
+                    <td class="py-3 align-top">${renderValidationDetails(obj.template_type, obj.extra_data)}</td>
                     <td class="py-3 text-right space-x-2 align-top">
                         <button onclick="enterObjectEditMode('${obj.id}', '${obj.name}', '${obj.template_type}', '${window.btoa(encodeURIComponent(JSON.stringify(obj.extra_data)))}')" class="text-xs text-cyan-400 hover:bg-cyan-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_edit')}</button>
                         <button onclick="deleteObject('${obj.id}')" class="text-xs text-red-400 hover:bg-red-500/10 px-2 py-1 rounded transition">${getLocaleText('list_section', 'btn_delete')}</button>
