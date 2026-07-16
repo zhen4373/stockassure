@@ -141,20 +141,20 @@
 
         function renderValidationDetails(extraData) {
             if (!extraData || typeof extraData !== 'object') {
-                return `<div class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-slate-200 text-xs">${String(extraData)}</div>`;
+                return `<div class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-slate-200 text-xs break-words whitespace-normal">${String(extraData)}</div>`;
             }
 
             const rows = Object.entries(extraData).map(([key, value]) => {
                 const displayValue = value === null ? 'null' : (typeof value === 'object' ? JSON.stringify(value) : String(value));
                 return `
-                    <div class="grid grid-cols-[140px_1fr] gap-x-3 py-1 border-b border-slate-800/70 last:border-b-0">
-                        <div class="text-slate-400 text-[11px] uppercase tracking-[0.12em]">${key}</div>
-                        <div class="text-slate-100 text-xs break-words">${displayValue}</div>
+                    <div class="grid grid-cols-[140px_minmax(0,1fr)] gap-x-3 py-1 border-b border-slate-800/70 last:border-b-0 min-w-0">
+                        <div class="text-slate-400 text-[11px] uppercase tracking-[0.12em] whitespace-nowrap">${key}</div>
+                        <div class="text-slate-100 text-xs break-words whitespace-normal min-w-0">${displayValue}</div>
                     </div>
                 `;
             }).join('');
 
-            return `<div class="rounded-2xl bg-slate-900/80 border border-slate-700 p-3 text-xs space-y-1">${rows}</div>`;
+            return `<div class="rounded-2xl bg-slate-900/80 border border-slate-700 p-3 text-xs space-y-1 overflow-hidden max-w-full">${rows}</div>`;
         }
 
         // 切換語系：重新載入所有組件並重新渲染表單/列表
@@ -202,7 +202,7 @@
                     Object.keys(templatesMeta).forEach(key => {
                         const opt = document.createElement('option');
                         opt.value = key;
-                        opt.textContent = key;
+                        opt.textContent = templatesMeta[key].display_name || key;
                         selector.appendChild(opt);
                     });
                     renderDynamicForm();

@@ -52,3 +52,9 @@ nosetests.xml
 
 # Pyre
 .pyre/
+
+
+# .db files
+*.db
+*.sqlite
+*.sqlite3

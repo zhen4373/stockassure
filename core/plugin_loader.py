@@ -68,7 +68,10 @@ def load_plugins():
                                 print(f"   🔥 來自外掛 [{plugin_name}] (v{plugin_version}) 的同名模板將會覆蓋它！請檢查外掛結構。")
                             
                             GLOBAL_TEMPLATES[template_key] = {
-                                "schema": template_schema,
+                                "template_id": template_schema.get("template_id", template_key),
+                                "display_name": template_schema.get("display_name", template_key),
+                                "belong_to_plugin": template_schema.get("belong_to_plugin", plugin_name),
+                                "schema": template_schema.get("schema", template_schema),
                                 "plugin_name": plugin_name,
                                 "plugin_version": plugin_version,
                                 "plugin_path": str(plugin_path)
