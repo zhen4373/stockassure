@@ -31,7 +31,7 @@ def load_plugins():
             try:
                 with open(info_file, "r", encoding="utf-8") as f:
                     plugin_info = json.load(f)
-                    plugin_name = plugin_info.get('name')
+                    plugin_name = plugin_info.get('name',plugin_path.name)
                 
                 # 檢查外掛是否被啟用 (enabled)
                 if not plugin_info.get("enabled", False):
@@ -52,7 +52,10 @@ def load_plugins():
                                 template_schema = json.load(tf)
                             
                             # 塞進全域記憶體
-                            GLOBAL_TEMPLATES[template_key] = template_schema
+                            GLOBAL_TEMPLATES[template_key] = {
+                                "schema": template_schema,
+                                "plugin_name": plugin_name
+                            }
                             print(f"   └─ 🔌 已成功載入模板: [{template_key}]")
                             
             except Exception as e:
@@ -62,7 +65,9 @@ def load_plugins():
     template_list()
     
 def template_list():
-   count = 0
-   for template_name in GLOBAL_TEMPLATES.keys():
+    count = 0
+    # 🌟 讀取包裝好的字典，取出 plugin_name 來填補空缺
+    for template_name, template_data in GLOBAL_TEMPLATES.items():
         count += 1
-        print(f"   └─ {count}:{template_name} from {}")
+        plugin = template_data.get("plugin_name", "Unknown Plugin")
+        print(f"    └─ {count}: {template_name} from [{plugin}]")
