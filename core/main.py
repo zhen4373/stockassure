@@ -42,3 +42,14 @@ if os.path.exists(dashboard_ui_path):
     app.mount("/", StaticFiles(directory=dashboard_ui_path, html=True), name="dashboard_ui")
 else:
     print(f"⚠️ 警告：找不到前端 UI 目錄，路徑應為: {dashboard_ui_path}")
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "core.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        debug=True,
+    )
